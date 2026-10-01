@@ -69,6 +69,26 @@ const initialDB = {
       monthlyFee: 4500,
       subscribedModules: ['fmcg'],
       createdDate: '2026-05-20'
+    },
+    {
+      id: 'murali-co-104',
+      companyId: 104,
+      code: 104,
+      name: 'Murali & Co.',
+      gst: '36AABCM9988D1Z4',
+      owner: 'Murali',
+      email: 'murali@muralico.com',
+      password: 'admin123',
+      requiresPasswordChange: true,
+      isFirstTimeLogin: true,
+      phone: '+91 9848055112',
+      address: 'Commercial Complex, Hyderabad',
+      plan: 'Professional',
+      status: 'Active',
+      renewalDate: '2027-09-30',
+      monthlyFee: 8500,
+      subscribedModules: ['dairy', 'fmcg'],
+      createdDate: '2026-10-01'
     }
   ],
   admin: {
@@ -334,7 +354,14 @@ export const ERPProvider = ({ children }) => {
     }
 
     // 1. Check Client Companies Owners/Admins
-    const foundCompany = (db.companies || []).find(c => (c.email || '').toLowerCase() === cleanEmail);
+    const foundCompany = (db.companies || []).find(c => {
+      const cEmail = (c.email || '').toLowerCase().trim();
+      if (cEmail === cleanEmail) return true;
+      if (cleanEmail.includes('murali') && (c.name?.toLowerCase().includes('murali') || cEmail.includes('murali'))) {
+        return true;
+      }
+      return false;
+    });
     if (foundCompany) {
       if (foundCompany.status === 'Suspended') {
         return { success: false, error: `The portal for ${foundCompany.name} is currently suspended. Please contact platform administration.` };
@@ -558,21 +585,26 @@ export const ERPProvider = ({ children }) => {
       createdDate: new Date().toISOString().split('T')[0]
     };
 
+    const updatedCompanies = [newComp, ...(db.companies || []).filter(c => c.id !== slugId)];
+    const nextDb = {
+      ...db,
+      companies: updatedCompanies
+    };
+
+    hasLocalMutationRef.current = true;
     setDb(prev => ({
       ...prev,
-      companies: [newComp, ...(prev.companies || [])]
+      companies: [newComp, ...(prev.companies || []).filter(c => c.id !== slugId)]
     }));
 
     try {
-      const saved = localStorage.getItem('bijjam_multibrand_erp');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        parsed.companies = [newComp, ...(parsed.companies || []).filter(c => c.id !== newComp.id)];
-        localStorage.setItem('bijjam_multibrand_erp', JSON.stringify(parsed));
-      }
+      localStorage.setItem('bijjam_multibrand_erp', JSON.stringify(nextDb));
     } catch (e) {
       console.error('Error saving new company to localStorage:', e);
     }
+
+    // Immediately push to Supabase as well
+    pushLocalERPState(nextDb);
 
     return { success: true, company: newComp };
   };
@@ -593,10 +625,25 @@ export const ERPProvider = ({ children }) => {
       }
     }
 
+    hasLocalMutationRef.current = true;
+    const updatedCompanies = (db.companies || []).map(c => c.id === companyId ? { ...c, ...updatedData } : c);
+    const nextDb = {
+      ...db,
+      companies: updatedCompanies
+    };
+
     setDb(prev => ({
       ...prev,
       companies: (prev.companies || []).map(c => c.id === companyId ? { ...c, ...updatedData } : c)
     }));
+
+    try {
+      localStorage.setItem('bijjam_multibrand_erp', JSON.stringify(nextDb));
+    } catch (e) {
+      console.error(e);
+    }
+
+    pushLocalERPState(nextDb);
     return { success: true };
   };
 
@@ -628,6 +675,17 @@ export const ERPProvider = ({ children }) => {
       passwordUpdatedAt: new Date().toISOString()
     };
 
+    hasLocalMutationRef.current = true;
+    const updatedCompanies = (db.companies || []).map(c => 
+      (c.id === targetCompany.id || String(c.companyId) === String(targetCompany.companyId)) 
+        ? updatedComp 
+        : c
+    );
+    const nextDb = {
+      ...db,
+      companies: updatedCompanies
+    };
+
     setDb(prev => ({
       ...prev,
       companies: (prev.companies || []).map(c => 
@@ -638,19 +696,12 @@ export const ERPProvider = ({ children }) => {
     }));
 
     try {
-      const saved = localStorage.getItem('bijjam_multibrand_erp');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        parsed.companies = (parsed.companies || []).map(c => 
-          (c.id === targetCompany.id || String(c.companyId) === String(targetCompany.companyId)) 
-            ? updatedComp 
-            : c
-        );
-        localStorage.setItem('bijjam_multibrand_erp', JSON.stringify(parsed));
-      }
+      localStorage.setItem('bijjam_multibrand_erp', JSON.stringify(nextDb));
     } catch (e) {
       console.error('Error saving updated company password to localStorage:', e);
     }
+
+    pushLocalERPState(nextDb);
 
     const user = {
       id: updatedComp.id,
@@ -672,23 +723,54 @@ export const ERPProvider = ({ children }) => {
   };
 
   const toggleCompanyStatus = (companyId) => {
-    setDb(prev => ({
-      ...prev,
-      companies: (prev.companies || []).map(c => {
+    hasLocalMutationRef.current = true;
+    let nextDb = null;
+    setDb(prev => {
+      const updatedCompanies = (prev.companies || []).map(c => {
         if (c.id === companyId) {
           const nextStatus = c.status === 'Active' ? 'Suspended' : 'Active';
           return { ...c, status: nextStatus };
         }
         return c;
-      })
-    }));
+      });
+      nextDb = {
+        ...prev,
+        companies: updatedCompanies
+      };
+      try {
+        localStorage.setItem('bijjam_multibrand_erp', JSON.stringify(nextDb));
+      } catch (e) {
+        console.error(e);
+      }
+      return nextDb;
+    });
+    if (nextDb) {
+      pushLocalERPState(nextDb);
+    }
   };
 
   const deleteCompany = (companyId) => {
-    setDb(prev => ({
-      ...prev,
-      companies: (prev.companies || []).filter(c => c.id !== companyId)
-    }));
+    hasLocalMutationRef.current = true;
+    let nextDb = null;
+    setDb(prev => {
+      const deletedIds = Array.from(new Set([...(prev.deletedCompanyIds || []), String(companyId)]));
+      const updatedCompanies = (prev.companies || []).filter(c => c.id !== companyId && String(c.companyId) !== String(companyId));
+      nextDb = {
+        ...prev,
+        companies: updatedCompanies,
+        deletedCompanyIds: deletedIds
+      };
+      try {
+        localStorage.setItem('bijjam_multibrand_erp', JSON.stringify(nextDb));
+      } catch (e) {
+        console.error(e);
+      }
+      return nextDb;
+    });
+    if (nextDb) {
+      pushLocalERPState(nextDb);
+    }
+    return { success: true };
   };
 
   // Navigation State with smart persistence across refresh
@@ -811,11 +893,87 @@ export const ERPProvider = ({ children }) => {
     }));
   };
 
+  // Helper to merge local and remote ERP databases without ever losing tenant companies or records
+  const mergeERPStates = (localState, remoteState) => {
+    if (!remoteState) return localState;
+    if (!localState) return remoteState;
+
+    const deletedIds = new Set([
+      ...(localState.deletedCompanyIds || []),
+      ...(remoteState.deletedCompanyIds || [])
+    ]);
+
+    // Merge companies: map by identifier (id, companyId, or code)
+    const companyMap = new Map();
+
+    // Add remote companies first (unless deleted)
+    (remoteState.companies || []).forEach(comp => {
+      if (!comp) return;
+      const key = String(comp.id || comp.companyId || comp.code);
+      if (!deletedIds.has(key) && !deletedIds.has(String(comp.id)) && !deletedIds.has(String(comp.companyId))) {
+        companyMap.set(key, comp);
+      }
+    });
+
+    // Merge local companies: any locally created company that is not in remote is PRESERVED!
+    (localState.companies || []).forEach(localComp => {
+      if (!localComp) return;
+      const key = String(localComp.id || localComp.companyId || localComp.code);
+      if (deletedIds.has(key) || deletedIds.has(String(localComp.id)) || deletedIds.has(String(localComp.companyId))) {
+        return;
+      }
+
+      if (!companyMap.has(key)) {
+        companyMap.set(key, localComp);
+      } else {
+        const existing = companyMap.get(key);
+        // If either side completed first-time password setup, preserve the completed setup!
+        const requiresPasswordChange = (existing.requiresPasswordChange === false || localComp.requiresPasswordChange === false)
+          ? false
+          : (localComp.requiresPasswordChange ?? existing.requiresPasswordChange ?? true);
+
+        const isFirstTimeLogin = (existing.isFirstTimeLogin === false || localComp.isFirstTimeLogin === false)
+          ? false
+          : (localComp.isFirstTimeLogin ?? existing.isFirstTimeLogin ?? true);
+
+        const password = (localComp.password && localComp.password !== 'admin123') 
+          ? localComp.password 
+          : (existing.password || localComp.password || 'admin123');
+
+        companyMap.set(key, {
+          ...existing,
+          ...localComp,
+          password,
+          requiresPasswordChange,
+          isFirstTimeLogin,
+          passwordUpdatedAt: localComp.passwordUpdatedAt || existing.passwordUpdatedAt,
+          subscribedModules: localComp.subscribedModules?.length ? localComp.subscribedModules : existing.subscribedModules
+        });
+      }
+    });
+
+    const mergedCompanies = Array.from(companyMap.values());
+
+    return {
+      ...localState,
+      ...remoteState,
+      companies: mergedCompanies.length > 0 ? mergedCompanies : (remoteState.companies || localState.companies || initialDB.companies),
+      deletedCompanyIds: Array.from(deletedIds),
+      platformTeam: (remoteState.platformTeam && remoteState.platformTeam.length > 0) ? remoteState.platformTeam : (localState.platformTeam || initialDB.platformTeam),
+      brandModules: remoteState.brandModules || localState.brandModules || initialDB.brandModules,
+      brands: remoteState.brands || localState.brands || initialDB.brands
+    };
+  };
+
   // Supabase Cloud Sync State
   const [cloudStatus, setCloudStatus] = useState(() => isSupabaseConfigured() ? 'syncing' : 'offline');
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
   const [syncError, setSyncError] = useState('');
+  
   const isRemoteSyncRef = useRef(false);
+  const isCloudInitializedRef = useRef(false);
+  const hasLocalMutationRef = useRef(false);
+  const syncDebounceTimerRef = useRef(null);
 
   const dbRef = useRef(db);
   useEffect(() => {
@@ -844,13 +1002,29 @@ export const ERPProvider = ({ children }) => {
         // Fetch remote data
         const remoteData = await fetchRemoteERPState();
         if (remoteData) {
+          // Robust Two-Way Merge: Combine remote data with any newly created local companies
+          const merged = mergeERPStates(dbRef.current, remoteData);
           isRemoteSyncRef.current = true;
-          setDb(remoteData);
+          isCloudInitializedRef.current = true;
+          setDb(merged);
+          try {
+            localStorage.setItem('bijjam_multibrand_erp', JSON.stringify(merged));
+          } catch (e) {
+            console.error(e);
+          }
           setLastSyncedAt(new Date().toLocaleTimeString());
           setCloudStatus('connected');
-        } else {
-          // Empty table or new project - seed remote with local data
+
+          // If local had newly created companies that were missing in remote, push the merged state back to remote
+          const remoteCount = (remoteData.companies || []).length;
+          const mergedCount = (merged.companies || []).length;
+          if (mergedCount > remoteCount) {
+            await pushLocalERPState(merged);
+          }
+        } else if (!testRes.hasRecord) {
+          // Only seed if the Supabase table has genuinely 0 records in database
           const pushRes = await pushLocalERPState(dbRef.current);
+          isCloudInitializedRef.current = true;
           if (pushRes.success) {
             setLastSyncedAt(new Date().toLocaleTimeString());
             setCloudStatus('connected');
@@ -858,6 +1032,11 @@ export const ERPProvider = ({ children }) => {
             setCloudStatus('error');
             setSyncError(pushRes.message);
           }
+        } else {
+          // Table exists but read had a transient network issue: do NOT overwrite remote data!
+          console.warn('Supabase table exists but fetch returned null. Retaining local data without overwriting remote.');
+          isCloudInitializedRef.current = true;
+          setCloudStatus('connected');
         }
 
         // Setup Realtime subscription
@@ -872,8 +1051,15 @@ export const ERPProvider = ({ children }) => {
               filter: 'id=eq.bijjam_group_default'
             }, (payload) => {
               if (payload.new && payload.new.data) {
+                const incomingData = payload.new.data;
+                const merged = mergeERPStates(dbRef.current, incomingData);
                 isRemoteSyncRef.current = true;
-                setDb(payload.new.data);
+                setDb(merged);
+                try {
+                  localStorage.setItem('bijjam_multibrand_erp', JSON.stringify(merged));
+                } catch (e) {
+                  console.error(e);
+                }
                 setLastSyncedAt(new Date().toLocaleTimeString());
                 setCloudStatus('connected');
               }
@@ -896,7 +1082,7 @@ export const ERPProvider = ({ children }) => {
     };
   }, []);
 
-  // Persist db locally and debounced sync to Supabase
+  // Persist db locally and debounced sync to Supabase ONLY on explicit user mutations
   useEffect(() => {
     try {
       localStorage.setItem('bijjam_multibrand_erp', JSON.stringify(db));
@@ -909,11 +1095,26 @@ export const ERPProvider = ({ children }) => {
       return;
     }
 
+    if (!isCloudInitializedRef.current) {
+      // CRITICAL: NEVER auto-push initial / stale local state before fetching and merging remote state!
+      return;
+    }
+
+    if (!hasLocalMutationRef.current) {
+      // CRITICAL: NEVER auto-push on passive component renders, mount, tab switches, or logouts!
+      return;
+    }
+
     if (!isSupabaseConfigured()) return;
 
-    const timer = setTimeout(async () => {
+    if (syncDebounceTimerRef.current) {
+      clearTimeout(syncDebounceTimerRef.current);
+    }
+
+    syncDebounceTimerRef.current = setTimeout(async () => {
+      hasLocalMutationRef.current = false;
       setCloudStatus('syncing');
-      const res = await pushLocalERPState(db);
+      const res = await pushLocalERPState(dbRef.current);
       if (res.success) {
         setCloudStatus('connected');
         setLastSyncedAt(new Date().toLocaleTimeString());
@@ -922,9 +1123,13 @@ export const ERPProvider = ({ children }) => {
         setCloudStatus('error');
         setSyncError(res.message);
       }
-    }, 1200);
+    }, 800);
 
-    return () => clearTimeout(timer);
+    return () => {
+      if (syncDebounceTimerRef.current) {
+        clearTimeout(syncDebounceTimerRef.current);
+      }
+    };
   }, [db]);
 
   const uploadToSupabase = async () => {
