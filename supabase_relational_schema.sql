@@ -6,6 +6,75 @@
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
+-- 0. CLEAN UP ANY PRE-EXISTING EMPTY TABLES MISSING THE company_id COLUMN
+-- ----------------------------------------------------------------------------
+DO $$
+BEGIN
+  -- If customers exists without company_id column, drop legacy empty table
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'customers'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'customers' AND column_name = 'company_id'
+  ) THEN
+    DROP TABLE public.customers CASCADE;
+  END IF;
+
+  -- If selling_items exists without company_id column, drop legacy empty table
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'selling_items'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'selling_items' AND column_name = 'company_id'
+  ) THEN
+    DROP TABLE public.selling_items CASCADE;
+  END IF;
+
+  -- If company_users exists without company_id column, drop legacy empty table
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'company_users'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'company_users' AND column_name = 'company_id'
+  ) THEN
+    DROP TABLE public.company_users CASCADE;
+  END IF;
+
+  -- If dairy_farmers exists without company_id column, drop legacy empty table
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'dairy_farmers'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'dairy_farmers' AND column_name = 'company_id'
+  ) THEN
+    DROP TABLE public.dairy_farmers CASCADE;
+  END IF;
+
+  -- If dairy_procurement exists without company_id column, drop legacy empty table
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'dairy_procurement'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'dairy_procurement' AND column_name = 'company_id'
+  ) THEN
+    DROP TABLE public.dairy_procurement CASCADE;
+  END IF;
+
+  -- If delivery_routes exists without company_id column, drop legacy empty table
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'delivery_routes'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'delivery_routes' AND column_name = 'company_id'
+  ) THEN
+    DROP TABLE public.delivery_routes CASCADE;
+  END IF;
+
+  -- If financial_transactions exists without company_id column, drop legacy empty table
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'financial_transactions'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'financial_transactions' AND column_name = 'company_id'
+  ) THEN
+    DROP TABLE public.financial_transactions CASCADE;
+  END IF;
+END $$;
+
+-- ----------------------------------------------------------------------------
 -- 1. COMPANIES (TENANTS)
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.companies (
@@ -31,6 +100,25 @@ CREATE TABLE IF NOT EXISTS public.companies (
   updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS id TEXT;
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS serial_number INT DEFAULT 101;
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS gst TEXT;
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS owner TEXT;
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS password TEXT DEFAULT 'admin123';
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS requires_password_change BOOLEAN DEFAULT true;
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS is_first_time_login BOOLEAN DEFAULT true;
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS plan TEXT DEFAULT 'Professional';
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active';
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS renewal_date DATE DEFAULT '2027-09-30';
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS monthly_fee NUMERIC DEFAULT 8500;
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS subscribed_modules JSONB DEFAULT '["dairy", "fmcg"]'::jsonb;
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS avatar TEXT;
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS password_updated_at TIMESTAMPTZ;
+
 CREATE INDEX IF NOT EXISTS idx_companies_status ON public.companies(status);
 CREATE INDEX IF NOT EXISTS idx_companies_email ON public.companies(email);
 
@@ -51,6 +139,16 @@ CREATE TABLE IF NOT EXISTS public.platform_team (
   updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+ALTER TABLE public.platform_team ADD COLUMN IF NOT EXISTS id TEXT;
+ALTER TABLE public.platform_team ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.platform_team ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.platform_team ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'Platform Administrator';
+ALTER TABLE public.platform_team ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE public.platform_team ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active';
+ALTER TABLE public.platform_team ADD COLUMN IF NOT EXISTS avatar TEXT;
+ALTER TABLE public.platform_team ADD COLUMN IF NOT EXISTS joined_date DATE DEFAULT CURRENT_DATE;
+ALTER TABLE public.platform_team ADD COLUMN IF NOT EXISTS last_login TEXT;
+
 -- ----------------------------------------------------------------------------
 -- 3. COMPANY USERS / EMPLOYEES
 -- ----------------------------------------------------------------------------
@@ -66,6 +164,15 @@ CREATE TABLE IF NOT EXISTS public.company_users (
   avatar TEXT,
   created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+ALTER TABLE public.company_users ADD COLUMN IF NOT EXISTS company_id TEXT REFERENCES public.companies(id) ON DELETE CASCADE;
+ALTER TABLE public.company_users ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.company_users ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.company_users ADD COLUMN IF NOT EXISTS password TEXT DEFAULT 'user123';
+ALTER TABLE public.company_users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'Manager';
+ALTER TABLE public.company_users ADD COLUMN IF NOT EXISTS brand TEXT DEFAULT 'All Brands';
+ALTER TABLE public.company_users ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active';
+ALTER TABLE public.company_users ADD COLUMN IF NOT EXISTS avatar TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_company_users_comp ON public.company_users(company_id);
 CREATE INDEX IF NOT EXISTS idx_company_users_email ON public.company_users(email);
@@ -89,6 +196,17 @@ CREATE TABLE IF NOT EXISTS public.customers (
   updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS company_id TEXT REFERENCES public.companies(id) ON DELETE CASCADE;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS brand_id TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS area TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS route TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS sku TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS bill NUMERIC DEFAULT 0;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS pending NUMERIC DEFAULT 0;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS reg_date DATE DEFAULT CURRENT_DATE;
+
 CREATE INDEX IF NOT EXISTS idx_customers_comp_brand ON public.customers(company_id, brand_id);
 CREATE INDEX IF NOT EXISTS idx_customers_phone ON public.customers(phone);
 
@@ -110,6 +228,16 @@ CREATE TABLE IF NOT EXISTS public.selling_items (
   updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+ALTER TABLE public.selling_items ADD COLUMN IF NOT EXISTS company_id TEXT REFERENCES public.companies(id) ON DELETE CASCADE;
+ALTER TABLE public.selling_items ADD COLUMN IF NOT EXISTS brand_id TEXT;
+ALTER TABLE public.selling_items ADD COLUMN IF NOT EXISTS sku_code TEXT;
+ALTER TABLE public.selling_items ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.selling_items ADD COLUMN IF NOT EXISTS category TEXT;
+ALTER TABLE public.selling_items ADD COLUMN IF NOT EXISTS mrp NUMERIC;
+ALTER TABLE public.selling_items ADD COLUMN IF NOT EXISTS price NUMERIC DEFAULT 0;
+ALTER TABLE public.selling_items ADD COLUMN IF NOT EXISTS stock NUMERIC DEFAULT 0;
+ALTER TABLE public.selling_items ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'In Stock';
+
 CREATE INDEX IF NOT EXISTS idx_selling_items_comp_brand ON public.selling_items(company_id, brand_id);
 
 -- ----------------------------------------------------------------------------
@@ -124,6 +252,12 @@ CREATE TABLE IF NOT EXISTS public.dairy_farmers (
   rate_per_liter NUMERIC DEFAULT 48,
   created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+ALTER TABLE public.dairy_farmers ADD COLUMN IF NOT EXISTS company_id TEXT REFERENCES public.companies(id) ON DELETE CASCADE;
+ALTER TABLE public.dairy_farmers ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.dairy_farmers ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE public.dairy_farmers ADD COLUMN IF NOT EXISTS area TEXT;
+ALTER TABLE public.dairy_farmers ADD COLUMN IF NOT EXISTS rate_per_liter NUMERIC DEFAULT 48;
 
 CREATE INDEX IF NOT EXISTS idx_dairy_farmers_comp ON public.dairy_farmers(company_id);
 
@@ -145,6 +279,17 @@ CREATE TABLE IF NOT EXISTS public.dairy_procurement (
   created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+ALTER TABLE public.dairy_procurement ADD COLUMN IF NOT EXISTS company_id TEXT REFERENCES public.companies(id) ON DELETE CASCADE;
+ALTER TABLE public.dairy_procurement ADD COLUMN IF NOT EXISTS farmer_id TEXT;
+ALTER TABLE public.dairy_procurement ADD COLUMN IF NOT EXISTS farmer_name TEXT;
+ALTER TABLE public.dairy_procurement ADD COLUMN IF NOT EXISTS date DATE DEFAULT CURRENT_DATE;
+ALTER TABLE public.dairy_procurement ADD COLUMN IF NOT EXISTS shift TEXT DEFAULT 'Morning';
+ALTER TABLE public.dairy_procurement ADD COLUMN IF NOT EXISTS qty NUMERIC DEFAULT 0;
+ALTER TABLE public.dairy_procurement ADD COLUMN IF NOT EXISTS fat NUMERIC DEFAULT 0;
+ALTER TABLE public.dairy_procurement ADD COLUMN IF NOT EXISTS snf NUMERIC DEFAULT 0;
+ALTER TABLE public.dairy_procurement ADD COLUMN IF NOT EXISTS rate NUMERIC DEFAULT 0;
+ALTER TABLE public.dairy_procurement ADD COLUMN IF NOT EXISTS total NUMERIC DEFAULT 0;
+
 CREATE INDEX IF NOT EXISTS idx_dairy_procurement_comp_date ON public.dairy_procurement(company_id, date);
 
 -- ----------------------------------------------------------------------------
@@ -159,6 +304,12 @@ CREATE TABLE IF NOT EXISTS public.delivery_routes (
   shift TEXT DEFAULT 'Morning (5:00 AM - 8:00 AM)',
   created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+ALTER TABLE public.delivery_routes ADD COLUMN IF NOT EXISTS company_id TEXT REFERENCES public.companies(id) ON DELETE CASCADE;
+ALTER TABLE public.delivery_routes ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.delivery_routes ADD COLUMN IF NOT EXISTS executive TEXT;
+ALTER TABLE public.delivery_routes ADD COLUMN IF NOT EXISTS customers_count INT DEFAULT 0;
+ALTER TABLE public.delivery_routes ADD COLUMN IF NOT EXISTS shift TEXT DEFAULT 'Morning (5:00 AM - 8:00 AM)';
 
 CREATE INDEX IF NOT EXISTS idx_delivery_routes_comp ON public.delivery_routes(company_id);
 
@@ -181,11 +332,23 @@ CREATE TABLE IF NOT EXISTS public.financial_transactions (
   created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+ALTER TABLE public.financial_transactions ADD COLUMN IF NOT EXISTS company_id TEXT REFERENCES public.companies(id) ON DELETE CASCADE;
+ALTER TABLE public.financial_transactions ADD COLUMN IF NOT EXISTS brand_id TEXT;
+ALTER TABLE public.financial_transactions ADD COLUMN IF NOT EXISTS type TEXT;
+ALTER TABLE public.financial_transactions ADD COLUMN IF NOT EXISTS category TEXT;
+ALTER TABLE public.financial_transactions ADD COLUMN IF NOT EXISTS party_name TEXT;
+ALTER TABLE public.financial_transactions ADD COLUMN IF NOT EXISTS sku TEXT;
+ALTER TABLE public.financial_transactions ADD COLUMN IF NOT EXISTS qty TEXT;
+ALTER TABLE public.financial_transactions ADD COLUMN IF NOT EXISTS amount NUMERIC DEFAULT 0;
+ALTER TABLE public.financial_transactions ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Paid';
+ALTER TABLE public.financial_transactions ADD COLUMN IF NOT EXISTS date DATE DEFAULT CURRENT_DATE;
+ALTER TABLE public.financial_transactions ADD COLUMN IF NOT EXISTS desc_notes TEXT;
+
 CREATE INDEX IF NOT EXISTS idx_financial_tx_comp_brand ON public.financial_transactions(company_id, brand_id, type);
 CREATE INDEX IF NOT EXISTS idx_financial_tx_date ON public.financial_transactions(date);
 
 -- ----------------------------------------------------------------------------
--- 10. ROW LEVEL SECURITY (RLS) POLICIES
+-- 10. ROW LEVEL SECURITY (RLS) POLICIES (IDEMPOTENT)
 -- ----------------------------------------------------------------------------
 ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.platform_team ENABLE ROW LEVEL SECURITY;
@@ -196,6 +359,17 @@ ALTER TABLE public.dairy_farmers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.dairy_procurement ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.delivery_routes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.financial_transactions ENABLE ROW LEVEL SECURITY;
+
+-- Drop prior policies if they exist to prevent duplicate policy errors
+DROP POLICY IF EXISTS "Allow full access to companies" ON public.companies;
+DROP POLICY IF EXISTS "Allow full access to platform_team" ON public.platform_team;
+DROP POLICY IF EXISTS "Allow full access to company_users" ON public.company_users;
+DROP POLICY IF EXISTS "Allow full access to customers" ON public.customers;
+DROP POLICY IF EXISTS "Allow full access to selling_items" ON public.selling_items;
+DROP POLICY IF EXISTS "Allow full access to dairy_farmers" ON public.dairy_farmers;
+DROP POLICY IF EXISTS "Allow full access to dairy_procurement" ON public.dairy_procurement;
+DROP POLICY IF EXISTS "Allow full access to delivery_routes" ON public.delivery_routes;
+DROP POLICY IF EXISTS "Allow full access to financial_transactions" ON public.financial_transactions;
 
 -- Allow read/write policies for client & API roles
 CREATE POLICY "Allow full access to companies" ON public.companies FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
