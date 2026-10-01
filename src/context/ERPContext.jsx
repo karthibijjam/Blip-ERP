@@ -563,6 +563,17 @@ export const ERPProvider = ({ children }) => {
       companies: [newComp, ...(prev.companies || [])]
     }));
 
+    try {
+      const saved = localStorage.getItem('bijjam_multibrand_erp');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        parsed.companies = [newComp, ...(parsed.companies || []).filter(c => c.id !== newComp.id)];
+        localStorage.setItem('bijjam_multibrand_erp', JSON.stringify(parsed));
+      }
+    } catch (e) {
+      console.error('Error saving new company to localStorage:', e);
+    }
+
     return { success: true, company: newComp };
   };
 
@@ -598,42 +609,66 @@ export const ERPProvider = ({ children }) => {
       return { success: false, error: 'Please choose a new password different from the temporary default password (admin123).' };
     }
 
-    let updatedComp = null;
-    setDb(prev => {
-      const updatedCompanies = (prev.companies || []).map(c => {
-        if (c.id === companyId || c.companyId === companyId || c.code === companyId) {
-          updatedComp = {
-            ...c,
-            password: cleanNewPass,
-            requiresPasswordChange: false,
-            isFirstTimeLogin: false,
-            passwordUpdatedAt: new Date().toISOString()
-          };
-          return updatedComp;
-        }
-        return c;
-      });
-      return { ...prev, companies: updatedCompanies };
-    });
+    const currentCompanies = db.companies || [];
+    const targetCompany = currentCompanies.find(c => 
+      c.id === companyId || 
+      String(c.companyId) === String(companyId) || 
+      String(c.code) === String(companyId)
+    );
 
-    const targetCompany = updatedComp || (db.companies || []).find(c => c.id === companyId || c.companyId === companyId);
+    if (!targetCompany) {
+      return { success: false, error: 'Company outlet record not found.' };
+    }
+
+    const updatedComp = {
+      ...targetCompany,
+      password: cleanNewPass,
+      requiresPasswordChange: false,
+      isFirstTimeLogin: false,
+      passwordUpdatedAt: new Date().toISOString()
+    };
+
+    setDb(prev => ({
+      ...prev,
+      companies: (prev.companies || []).map(c => 
+        (c.id === targetCompany.id || String(c.companyId) === String(targetCompany.companyId)) 
+          ? updatedComp 
+          : c
+      )
+    }));
+
+    try {
+      const saved = localStorage.getItem('bijjam_multibrand_erp');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        parsed.companies = (parsed.companies || []).map(c => 
+          (c.id === targetCompany.id || String(c.companyId) === String(targetCompany.companyId)) 
+            ? updatedComp 
+            : c
+        );
+        localStorage.setItem('bijjam_multibrand_erp', JSON.stringify(parsed));
+      }
+    } catch (e) {
+      console.error('Error saving updated company password to localStorage:', e);
+    }
+
     const user = {
-      id: targetCompany?.id || companyId,
-      name: targetCompany?.owner || 'Company Administrator',
-      email: targetCompany?.email,
+      id: updatedComp.id,
+      name: updatedComp.owner || 'Company Administrator',
+      email: updatedComp.email,
       role: 'Company Administrator',
       brand: 'All Brands',
-      company: targetCompany?.name || 'Company Portal',
-      companyId: targetCompany?.id || companyId,
-      avatar: targetCompany?.avatar,
+      company: updatedComp.name || 'Company Portal',
+      companyId: updatedComp.id,
+      avatar: updatedComp.avatar,
       requiresPasswordChange: false
     };
 
-    switchActiveCompany(targetCompany?.id || companyId);
+    switchActiveCompany(updatedComp.id);
     setCurrentUser(user);
     localStorage.setItem('bijjam_erp_session', JSON.stringify(user));
-    setActiveTab('dashboard');
-    return { success: true, user, company: targetCompany };
+    setActiveTabState('dashboard');
+    return { success: true, user, company: updatedComp };
   };
 
   const toggleCompanyStatus = (companyId) => {

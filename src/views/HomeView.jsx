@@ -22,15 +22,16 @@ import {
   Send,
   Menu,
   X,
-  UserPlus
+  UserPlus,
+  KeyRound
 } from 'lucide-react';
 
 export default function HomeView() {
-  const { db, login, createCompany } = useERP();
+  const { db, login, createCompany, completeFirstTimePasswordSetup } = useERP();
 
   // Navigation tab for smooth section jumping
   const [activeSection, setActiveSection] = useState('home');
-  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register' | 'first-time-setup'
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Section refs for smooth scrolling
@@ -48,6 +49,14 @@ export default function HomeView() {
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showForgotModal, setShowForgotModal] = useState(false);
+
+  // First-Time Login Password Setup States
+  const [pendingCompanyData, setPendingCompanyData] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
 
   // Create Account / Registration State
   const [regData, setRegData] = useState({
@@ -99,10 +108,50 @@ export default function HomeView() {
     setTimeout(() => {
       const res = login(email, password);
       setIsLoading(false);
+      if (res && res.requiresPasswordChange) {
+        setPendingCompanyData(res);
+        setAuthMode('first-time-setup');
+        setNewPassword('');
+        setConfirmPassword('');
+        setPasswordError('');
+        return;
+      }
       if (!res.success) {
         setErrorMsg(res.error || 'Authentication failed. Please verify your credentials.');
       }
     }, 450);
+  };
+
+  // Handle First-Time Password Setup Submission
+  const handleFirstTimePasswordSubmit = (e) => {
+    e.preventDefault();
+    setPasswordError('');
+
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters long.');
+      return;
+    }
+
+    if (newPassword.toLowerCase() === 'admin123') {
+      setPasswordError('Please choose a new password different from the temporary default password (admin123).');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match. Please re-enter identical passwords.');
+      return;
+    }
+
+    setIsLoading(true);
+    setTimeout(() => {
+      if (completeFirstTimePasswordSetup && pendingCompanyData) {
+        const res = completeFirstTimePasswordSetup(pendingCompanyData.companyId, newPassword);
+        setIsLoading(false);
+        if (!res.success) {
+          setPasswordError(res.error || 'Failed to update password.');
+        }
+      }
+    }, 400);
   };
 
 
@@ -395,31 +444,47 @@ export default function HomeView() {
                 {/* Top Glowing Accent Line */}
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-500"></div>
 
-                {/* Tab Switcher: Login vs Create Account */}
-                <div className="flex rounded-2xl bg-slate-950 p-1 mb-6 border border-slate-800">
-                  <button
-                    onClick={() => { setAuthMode('login'); setErrorMsg(''); }}
-                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 ${
-                      authMode === 'login'
-                        ? 'bg-emerald-600 text-white shadow-md'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <Building2 className="w-3.5 h-3.5" />
-                    <span>Company Sign In</span>
-                  </button>
-                  <button
-                    onClick={() => { setAuthMode('register'); setErrorMsg(''); }}
-                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 ${
-                      authMode === 'register'
-                        ? 'bg-emerald-600 text-white shadow-md'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <UserPlus className="w-3.5 h-3.5" />
-                    <span>Create Account</span>
-                  </button>
-                </div>
+                {/* Tab Switcher: Login vs Create Account (Or First-Time Security Mode) */}
+                {authMode === 'first-time-setup' ? (
+                  <div className="flex items-center justify-between rounded-2xl bg-slate-950 p-2.5 mb-6 border border-slate-800">
+                    <div className="flex items-center space-x-2 text-xs font-bold text-emerald-400">
+                      <KeyRound className="w-4 h-4" />
+                      <span>Security Password Setup</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setAuthMode('login'); setPassword(''); setPasswordError(''); }}
+                      className="text-[11px] text-slate-400 hover:text-white font-semibold transition"
+                    >
+                      ← Back to Sign In
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex rounded-2xl bg-slate-950 p-1 mb-6 border border-slate-800">
+                    <button
+                      onClick={() => { setAuthMode('login'); setErrorMsg(''); }}
+                      className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 ${
+                        authMode === 'login'
+                          ? 'bg-emerald-600 text-white shadow-md'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Building2 className="w-3.5 h-3.5" />
+                      <span>Company Sign In</span>
+                    </button>
+                    <button
+                      onClick={() => { setAuthMode('register'); setErrorMsg(''); }}
+                      className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 ${
+                        authMode === 'register'
+                          ? 'bg-emerald-600 text-white shadow-md'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>Create Account</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Status Banners */}
                 {errorMsg && (
@@ -668,6 +733,166 @@ export default function HomeView() {
                       <UserPlus className="w-4 h-4" />
                       <span>{isLoading ? 'Provisioning ERP...' : 'Create Company ERP Account'}</span>
                     </button>
+                  </form>
+                )}
+
+                {/* ===================================== */}
+                {/* C. FIRST-TIME SECURITY PASSWORD SETUP */}
+                {/* ===================================== */}
+                {authMode === 'first-time-setup' && (
+                  <form onSubmit={handleFirstTimePasswordSubmit} className="space-y-4">
+                    {/* Header */}
+                    <div className="space-y-1">
+                      <div className="inline-flex items-center space-x-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                        <KeyRound className="w-3 h-3" />
+                        <span>Security Requirement</span>
+                      </div>
+                      <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                        Set Your Permanent Password
+                      </h3>
+                      <p className="text-xs text-slate-400">
+                        Welcome to your new outlet portal! For your account security, please create your own custom password.
+                      </p>
+                    </div>
+
+                    {/* Pending Account Pill */}
+                    <div className="p-3 bg-slate-950/80 border border-slate-800 rounded-2xl flex items-center justify-between text-xs">
+                      <div className="min-w-0 pr-2">
+                        <span className="font-bold text-white truncate block">
+                          {pendingCompanyData?.companyName || 'Company Outlet'}
+                        </span>
+                        <span className="text-slate-400 text-[11px] truncate block">
+                          {pendingCompanyData?.owner || 'Outlet Administrator'} • {pendingCompanyData?.email}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 shrink-0">
+                        First Login
+                      </span>
+                    </div>
+
+                    {/* Notice */}
+                    <div className="p-2.5 bg-slate-950/70 border border-slate-800/80 rounded-xl flex items-start space-x-2 text-[11px] text-slate-400">
+                      <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                      <span>Enter and re-enter your new password below. You will use this new password for all subsequent sign-ins.</span>
+                    </div>
+
+                    {/* Password Error Banner */}
+                    {passwordError && (
+                      <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs text-rose-300 flex items-start space-x-2 animate-shake">
+                        <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                        <span>{passwordError}</span>
+                      </div>
+                    )}
+
+                    {/* New Password */}
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                        New Password *
+                      </label>
+                      <div className="relative">
+                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
+                          <Lock className="w-4 h-4" />
+                        </div>
+                        <input
+                          type={showNewPassword ? 'text' : 'password'}
+                          required
+                          placeholder="Choose new password (min 6 chars)"
+                          value={newPassword}
+                          onChange={(e) => {
+                            setNewPassword(e.target.value);
+                            setPasswordError('');
+                          }}
+                          className="w-full bg-slate-950 border border-slate-800 text-white placeholder-slate-600 text-xs rounded-xl pl-10 pr-10 py-2.5 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition font-medium"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition"
+                          title={showNewPassword ? "Hide password" : "Show password"}
+                        >
+                          {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-1">Must be at least 6 characters & different from admin123.</p>
+                    </div>
+
+                    {/* Re-enter New Password */}
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                        Re-enter New Password *
+                      </label>
+                      <div className="relative">
+                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
+                          <Lock className="w-4 h-4" />
+                        </div>
+                        <input
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          required
+                          placeholder="Re-enter your new password"
+                          value={confirmPassword}
+                          onChange={(e) => {
+                            setConfirmPassword(e.target.value);
+                            setPasswordError('');
+                          }}
+                          className="w-full bg-slate-950 border border-slate-800 text-white placeholder-slate-600 text-xs rounded-xl pl-10 pr-10 py-2.5 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition font-medium"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition"
+                          title={showConfirmPassword ? "Hide password" : "Show password"}
+                        >
+                          {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+
+                      {confirmPassword && (
+                        <div className="mt-1.5 text-[11px] font-medium">
+                          {newPassword === confirmPassword ? (
+                            <span className="text-emerald-400 flex items-center gap-1.5">
+                              <CheckCircle2 size={13} /> Passwords match!
+                            </span>
+                          ) : (
+                            <span className="text-rose-400 flex items-center gap-1.5">
+                              <AlertCircle size={13} /> Passwords do not match
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="pt-2 space-y-2">
+                      <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-[0.99] text-slate-950 font-bold py-2.5 px-4 rounded-xl text-xs sm:text-sm shadow-lg shadow-emerald-500/25 transition duration-150 flex items-center justify-center space-x-2 disabled:opacity-75 cursor-pointer"
+                      >
+                        {isLoading ? (
+                          <>
+                            <i className="fa-solid fa-circle-notch animate-spin text-sm"></i>
+                            <span>Securing Account...</span>
+                          </>
+                        ) : (
+                          <>
+                            <KeyRound className="w-4 h-4" />
+                            <span>Save Password & Enter Dashboard</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAuthMode('login');
+                          setPassword('');
+                          setPasswordError('');
+                        }}
+                        className="w-full bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-white py-2 px-4 rounded-xl text-xs font-semibold transition border border-slate-800 cursor-pointer"
+                      >
+                        Cancel & Back to Sign In
+                      </button>
+                    </div>
                   </form>
                 )}
 
