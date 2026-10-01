@@ -1121,11 +1121,67 @@ export const ERPProvider = ({ children }) => {
           setCloudStatus('connected');
         }
 
-        // Setup Realtime subscription
+        // Check relational companies table
+        try {
+          const relRes = await fetchCompaniesFromDB();
+          if (relRes.success && relRes.data?.length > 0) {
+            setDb(prev => {
+              const companyMap = new Map();
+              relRes.data.forEach(c => companyMap.set(c.id, c));
+              (prev.companies || []).forEach(c => {
+                if (!companyMap.has(c.id)) companyMap.set(c.id, c);
+              });
+              return {
+                ...prev,
+                companies: Array.from(companyMap.values())
+              };
+            });
+          }
+        } catch (e) {
+          console.warn('Note on relational fetch:', e);
+        }
+
+        // Setup Realtime subscription for both granular relational changes and erp_state
         const client = getSupabaseClient();
         if (client) {
           activeChannel = client
-            .channel('erp_state_realtime')
+            .channel('erp_combined_realtime')
+            .on('postgres_changes', {
+              event: '*',
+              schema: 'public',
+              table: 'companies'
+            }, (payload) => {
+              if (payload.new) {
+                const comp = payload.new;
+                const formatted = {
+                  id: comp.id,
+                  companyId: comp.serial_number,
+                  code: comp.serial_number,
+                  name: comp.name,
+                  gst: comp.gst,
+                  owner: comp.owner,
+                  email: comp.email,
+                  password: comp.password,
+                  requiresPasswordChange: comp.requires_password_change,
+                  isFirstTimeLogin: comp.is_first_time_login,
+                  phone: comp.phone,
+                  address: comp.address,
+                  plan: comp.plan,
+                  status: comp.status,
+                  renewalDate: comp.renewal_date,
+                  monthlyFee: Number(comp.monthly_fee),
+                  subscribedModules: comp.subscribed_modules || ['dairy', 'fmcg'],
+                  avatar: comp.avatar
+                };
+                setDb(prev => {
+                  const existing = (prev.companies || []).filter(c => c.id !== formatted.id);
+                  return {
+                    ...prev,
+                    companies: [formatted, ...existing]
+                  };
+                });
+              }
+            })
             .on('postgres_changes', {
               event: '*',
               schema: 'public',
