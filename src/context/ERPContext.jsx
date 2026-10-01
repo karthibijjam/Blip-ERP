@@ -7,6 +7,15 @@ import {
   pushLocalERPState,
   getSupabaseClient
 } from '../lib/supabaseClient';
+import {
+  fetchCompaniesFromDB,
+  insertCompanyToDB,
+  updateCompanyInDB,
+  deleteCompanyFromDB
+} from '../services/companiesService';
+import { insertCustomerToDB } from '../services/customersService';
+import { insertItemToDB } from '../services/itemsService';
+import { insertProcurementToDB } from '../services/procurementService';
 
 const initialDB = {
   company: {
@@ -626,7 +635,10 @@ export const ERPProvider = ({ children }) => {
       console.error('Error saving new company to localStorage:', e);
     }
 
-    // Immediately push to Supabase as well
+    // Row-level insert into relational PostgreSQL table (~1KB payload)
+    insertCompanyToDB(newComp).catch(err => console.warn('Row-level insertCompany note:', err));
+
+    // Fallback sync to erp_state
     pushLocalERPState(nextDb);
 
     return { success: true, company: newComp };
@@ -665,6 +677,9 @@ export const ERPProvider = ({ children }) => {
     } catch (e) {
       console.error(e);
     }
+
+    // Row-level update into relational PostgreSQL table
+    updateCompanyInDB(companyId, updatedData).catch(err => console.warn('Row-level updateCompany note:', err));
 
     pushLocalERPState(nextDb);
     return { success: true };
@@ -724,6 +739,13 @@ export const ERPProvider = ({ children }) => {
       console.error('Error saving updated company password to localStorage:', e);
     }
 
+    // Row-level update into relational PostgreSQL table
+    updateCompanyInDB(targetCompany.id, {
+      password: cleanNewPass,
+      requiresPasswordChange: false,
+      isFirstTimeLogin: false
+    }).catch(err => console.warn('Row-level updatePassword note:', err));
+
     pushLocalERPState(nextDb);
 
     const user = {
@@ -748,10 +770,11 @@ export const ERPProvider = ({ children }) => {
   const toggleCompanyStatus = (companyId) => {
     hasLocalMutationRef.current = true;
     let nextDb = null;
+    let nextStatus = 'Active';
     setDb(prev => {
       const updatedCompanies = (prev.companies || []).map(c => {
         if (c.id === companyId) {
-          const nextStatus = c.status === 'Active' ? 'Suspended' : 'Active';
+          nextStatus = c.status === 'Active' ? 'Suspended' : 'Active';
           return { ...c, status: nextStatus };
         }
         return c;
@@ -767,6 +790,9 @@ export const ERPProvider = ({ children }) => {
       }
       return nextDb;
     });
+
+    updateCompanyInDB(companyId, { status: nextStatus }).catch(err => console.warn('Row-level toggleStatus note:', err));
+
     if (nextDb) {
       pushLocalERPState(nextDb);
     }
@@ -790,6 +816,9 @@ export const ERPProvider = ({ children }) => {
       }
       return nextDb;
     });
+
+    deleteCompanyFromDB(companyId).catch(err => console.warn('Row-level deleteCompany note:', err));
+
     if (nextDb) {
       pushLocalERPState(nextDb);
     }
@@ -1546,6 +1575,9 @@ export const ERPProvider = ({ children }) => {
       };
     });
 
+    // Row-level insert into relational PostgreSQL table (~300 bytes payload)
+    insertCustomerToDB({ ...updatedCustomer, brandId, companyId: activeCompanyId }).catch(err => console.warn('Row-level insertCustomer note:', err));
+
     return { success: true, customer: updatedCustomer };
   };
 
@@ -1618,6 +1650,9 @@ export const ERPProvider = ({ children }) => {
       };
     });
 
+    // Row-level insert into relational PostgreSQL table (~250 bytes payload)
+    insertItemToDB({ ...updatedItem, brandId, companyId: activeCompanyId }).catch(err => console.warn('Row-level insertItem note:', err));
+
     return { success: true, item: updatedItem };
   };
 
@@ -1641,7 +1676,10 @@ export const ERPProvider = ({ children }) => {
 
   // Specific entity adders
   const addDairyProcurement = (item) => {
-    setDb(prev => ({ ...prev, dairyProcurement: [...prev.dairyProcurement, { ...item, id: Date.now() }] }));
+    const record = { ...item, id: Date.now(), companyId: activeCompanyId };
+    // Row-level insert into relational PostgreSQL table (~200 bytes payload)
+    insertProcurementToDB(record).catch(err => console.warn('Row-level insertProcurement note:', err));
+    setDb(prev => ({ ...prev, dairyProcurement: [...prev.dairyProcurement, record] }));
   };
   const addDairyFarmer = (item) => {
     setDb(prev => ({ ...prev, dairyFarmers: [...prev.dairyFarmers, { ...item, id: Date.now() }] }));
