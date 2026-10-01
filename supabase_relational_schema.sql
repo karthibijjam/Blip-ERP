@@ -561,7 +561,7 @@ BEGIN
   LOOP
     INSERT INTO public.dairy_procurement (id, company_id, date, shift, farmer_name, qty, fat, snf, rate, total)
     VALUES (
-      'proc-' || COALESCE(proc->>'id', md5((proc->>'farmer') || (proc->>'date') || (proc->>'shift'))),
+      'proc-' || COALESCE(proc->>'id', md5(concat(proc->>'farmer', proc->>'date', proc->>'shift'))),
       'bijjam-group',
       COALESCE((proc->>'date')::DATE, CURRENT_DATE),
       COALESCE(proc->>'shift', 'Morning'),
@@ -590,12 +590,12 @@ BEGIN
     ON CONFLICT (id) DO NOTHING;
   END LOOP;
 
-  -- 8. Unpack Transactions
+  -- 8. Unpack Transactions (farmsSales, plantrixSales)
   FOR sale IN SELECT * FROM jsonb_array_elements(COALESCE(v_state->'farmsSales', '[]'::jsonb))
   LOOP
     INSERT INTO public.financial_transactions (id, company_id, brand_id, type, date, party_name, sku, amount, status)
     VALUES (
-      'tx-sale-farms-' || COALESCE(sale->>'id', md5(sale->>'date' || sale->>'customer')),
+      'tx-sale-farms-' || COALESCE(sale->>'id', md5(concat('farms', sale->>'date', sale->>'customer'))),
       'bijjam-group',
       'farms',
       'sale',
@@ -608,11 +608,48 @@ BEGIN
     ON CONFLICT (id) DO NOTHING;
   END LOOP;
 
+  FOR sale IN SELECT * FROM jsonb_array_elements(COALESCE(v_state->'plantrixSales', '[]'::jsonb))
+  LOOP
+    INSERT INTO public.financial_transactions (id, company_id, brand_id, type, date, party_name, sku, amount, status)
+    VALUES (
+      'tx-sale-plantrix-' || COALESCE(sale->>'id', md5(concat('plantrix', sale->>'date', sale->>'customer'))),
+      'bijjam-group',
+      'plantrix',
+      'sale',
+      COALESCE((sale->>'date')::DATE, CURRENT_DATE),
+      sale->>'customer',
+      sale->>'sku',
+      COALESCE((sale->>'amount')::NUMERIC, 0),
+      COALESCE(sale->>'status', 'Paid')
+    )
+    ON CONFLICT (id) DO NOTHING;
+  END LOOP;
+
+  -- 9. Unpack Purchases (farmsPurchases, plantrixPurchases)
+  FOR exp IN SELECT * FROM jsonb_array_elements(COALESCE(v_state->'farmsPurchases', '[]'::jsonb))
+  LOOP
+    INSERT INTO public.financial_transactions (id, company_id, brand_id, type, date, party_name, sku, qty, amount, status)
+    VALUES (
+      'tx-pur-farms-' || COALESCE(exp->>'id', md5(concat('farms-pur', exp->>'date', exp->>'supplier'))),
+      'bijjam-group',
+      'farms',
+      'purchase',
+      COALESCE((exp->>'date')::DATE, CURRENT_DATE),
+      exp->>'supplier',
+      exp->>'sku',
+      exp->>'qty',
+      COALESCE((exp->>'amount')::NUMERIC, 0),
+      'Paid'
+    )
+    ON CONFLICT (id) DO NOTHING;
+  END LOOP;
+
+  -- 10. Unpack Expenses (mixedExpenses)
   FOR exp IN SELECT * FROM jsonb_array_elements(COALESCE(v_state->'mixedExpenses', '[]'::jsonb))
   LOOP
     INSERT INTO public.financial_transactions (id, company_id, brand_id, type, date, category, desc_notes, amount, status)
     VALUES (
-      'tx-exp-mixed-' || COALESCE(exp->>'id', md5(exp->>'date' || exp->>'desc')),
+      'tx-exp-mixed-' || COALESCE(exp->>'id', md5(concat('mixed-exp', exp->>'date', exp->>'desc'))),
       'bijjam-group',
       'mixed',
       'expense',
