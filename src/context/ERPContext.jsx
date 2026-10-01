@@ -214,13 +214,29 @@ const initialDB = {
 };
 
 export const ERPProvider = ({ children }) => {
-  const [db, setDb] = useState(() => {
+  const isRemoteSyncRef = useRef(false);
+  const isCloudInitializedRef = useRef(false);
+  const hasLocalMutationRef = useRef(false);
+  const syncDebounceTimerRef = useRef(null);
+
+  const [db, setDbInternal] = useState(() => {
     try {
       const saved = localStorage.getItem('bijjam_multibrand_erp');
       if (saved) {
         const parsed = JSON.parse(saved);
         // Ensure critical fields exist
-        if (!parsed.companies || parsed.companies.length === 0) parsed.companies = initialDB.companies;
+        if (!parsed.companies || parsed.companies.length === 0) {
+          parsed.companies = initialDB.companies;
+        } else {
+          // Merge initialDB companies so newly added default companies (e.g. Murali & Co.) are never missing from an old localStorage
+          const existingKeys = new Set(parsed.companies.map(c => String(c.id || c.companyId || c.code)));
+          initialDB.companies.forEach(initComp => {
+            const key = String(initComp.id || initComp.companyId || initComp.code);
+            if (!existingKeys.has(key)) {
+              parsed.companies.push(initComp);
+            }
+          });
+        }
         if (!parsed.customersByBrand) parsed.customersByBrand = initialDB.customersByBrand;
         if (!parsed.sellingItemsByBrand) parsed.sellingItemsByBrand = initialDB.sellingItemsByBrand;
         if (!parsed.brandModules) parsed.brandModules = initialDB.brandModules;
@@ -258,6 +274,13 @@ export const ERPProvider = ({ children }) => {
     }
     return initialDB;
   });
+
+  const setDb = (action) => {
+    if (!isRemoteSyncRef.current) {
+      hasLocalMutationRef.current = true;
+    }
+    setDbInternal(action);
+  };
 
   // Authentication & Session State
   const [currentUser, setCurrentUser] = useState(() => {
@@ -952,6 +975,30 @@ export const ERPProvider = ({ children }) => {
       }
     });
 
+    const mergeArrayById = (localArr = [], remoteArr = [], idKey = 'id') => {
+      const map = new Map();
+      (remoteArr || []).forEach(item => {
+        if (item && item[idKey]) map.set(String(item[idKey]), item);
+      });
+      (localArr || []).forEach(item => {
+        if (item && item[idKey]) {
+          const key = String(item[idKey]);
+          if (!map.has(key)) map.set(key, item);
+          else map.set(key, { ...map.get(key), ...item });
+        }
+      });
+      return Array.from(map.values());
+    };
+
+    const mergeBrandRecordObjects = (localObj = {}, remoteObj = {}, idKey = 'id') => {
+      const res = { ...(localObj || {}), ...(remoteObj || {}) };
+      const allKeys = new Set([...Object.keys(localObj || {}), ...Object.keys(remoteObj || {})]);
+      allKeys.forEach(k => {
+        res[k] = mergeArrayById(localObj?.[k] || [], remoteObj?.[k] || [], idKey);
+      });
+      return res;
+    };
+
     const mergedCompanies = Array.from(companyMap.values());
 
     return {
@@ -961,7 +1008,18 @@ export const ERPProvider = ({ children }) => {
       deletedCompanyIds: Array.from(deletedIds),
       platformTeam: (remoteState.platformTeam && remoteState.platformTeam.length > 0) ? remoteState.platformTeam : (localState.platformTeam || initialDB.platformTeam),
       brandModules: remoteState.brandModules || localState.brandModules || initialDB.brandModules,
-      brands: remoteState.brands || localState.brands || initialDB.brands
+      brands: remoteState.brands || localState.brands || initialDB.brands,
+      customersByBrand: mergeBrandRecordObjects(localState.customersByBrand, remoteState.customersByBrand, 'phone'),
+      sellingItemsByBrand: mergeBrandRecordObjects(localState.sellingItemsByBrand, remoteState.sellingItemsByBrand, 'skuCode'),
+      dairyFarmers: mergeArrayById(localState.dairyFarmers, remoteState.dairyFarmers, 'id'),
+      deliveryRoutes: mergeArrayById(localState.deliveryRoutes, remoteState.deliveryRoutes, 'id'),
+      dairyCustomers: mergeArrayById(localState.dairyCustomers, remoteState.dairyCustomers, 'phone'),
+      dairyProcurement: mergeArrayById(localState.dairyProcurement, remoteState.dairyProcurement, 'id'),
+      farmsPurchases: mergeArrayById(localState.farmsPurchases, remoteState.farmsPurchases, 'id'),
+      farmsSales: mergeArrayById(localState.farmsSales, remoteState.farmsSales, 'id'),
+      plantrixPurchases: mergeArrayById(localState.plantrixPurchases, remoteState.plantrixPurchases, 'id'),
+      plantrixSales: mergeArrayById(localState.plantrixSales, remoteState.plantrixSales, 'id'),
+      mixedExpenses: mergeArrayById(localState.mixedExpenses, remoteState.mixedExpenses, 'id')
     };
   };
 
@@ -969,11 +1027,6 @@ export const ERPProvider = ({ children }) => {
   const [cloudStatus, setCloudStatus] = useState(() => isSupabaseConfigured() ? 'syncing' : 'offline');
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
   const [syncError, setSyncError] = useState('');
-  
-  const isRemoteSyncRef = useRef(false);
-  const isCloudInitializedRef = useRef(false);
-  const hasLocalMutationRef = useRef(false);
-  const syncDebounceTimerRef = useRef(null);
 
   const dbRef = useRef(db);
   useEffect(() => {
