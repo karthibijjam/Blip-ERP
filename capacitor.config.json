@@ -1,0 +1,14 @@
+{
+  "appId": "com.bijjam.erp",
+  "appName": "Bijjam ERP",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true
+  }
+}
