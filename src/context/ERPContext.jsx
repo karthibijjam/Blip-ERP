@@ -341,7 +341,22 @@ export const ERPProvider = ({ children }) => {
       }
 
       const expectedPass = foundCompany.password || 'admin123';
-      if (cleanPass === expectedPass || cleanPass === 'admin123' || cleanPass === 'user123') {
+      const isPasswordMatch = cleanPass === expectedPass || (foundCompany.requiresPasswordChange && cleanPass === 'admin123') || cleanPass === 'user123';
+      
+      if (isPasswordMatch) {
+        // If first-time login requires changing password
+        if (foundCompany.requiresPasswordChange || foundCompany.isFirstTimeLogin) {
+          return {
+            success: true,
+            requiresPasswordChange: true,
+            companyId: foundCompany.id,
+            company: foundCompany,
+            owner: foundCompany.owner || 'Company Admin',
+            companyName: foundCompany.name,
+            email: cleanEmail
+          };
+        }
+
         const user = {
           id: foundCompany.id,
           name: foundCompany.owner || 'Company Administrator',
@@ -349,7 +364,8 @@ export const ERPProvider = ({ children }) => {
           role: 'Company Administrator',
           brand: 'All Brands',
           company: foundCompany.name,
-          companyId: foundCompany.id
+          companyId: foundCompany.id,
+          avatar: foundCompany.avatar
         };
         switchActiveCompany(foundCompany.id);
         setCurrentUser(user);
@@ -529,7 +545,9 @@ export const ERPProvider = ({ children }) => {
       gst: companyData.gst || '36AAAAA0000A1Z0',
       owner: companyData.owner || 'Company Admin',
       email: cleanEmail,
-      password: companyData.password || 'admin123',
+      password: (companyData.password || 'admin123').trim(),
+      requiresPasswordChange: companyData.requiresPasswordChange !== false,
+      isFirstTimeLogin: true,
       phone: companyData.phone || '+91 9000000000',
       address: companyData.address || 'Corporate Park, Hyderabad',
       plan: companyData.plan || 'Professional',
@@ -569,6 +587,53 @@ export const ERPProvider = ({ children }) => {
       companies: (prev.companies || []).map(c => c.id === companyId ? { ...c, ...updatedData } : c)
     }));
     return { success: true };
+  };
+
+  const completeFirstTimePasswordSetup = (companyId, newPassword) => {
+    const cleanNewPass = (newPassword || '').trim();
+    if (!cleanNewPass || cleanNewPass.length < 6) {
+      return { success: false, error: 'Password must be at least 6 characters long.' };
+    }
+    if (cleanNewPass.toLowerCase() === 'admin123') {
+      return { success: false, error: 'Please choose a new password different from the temporary default password (admin123).' };
+    }
+
+    let updatedComp = null;
+    setDb(prev => {
+      const updatedCompanies = (prev.companies || []).map(c => {
+        if (c.id === companyId || c.companyId === companyId || c.code === companyId) {
+          updatedComp = {
+            ...c,
+            password: cleanNewPass,
+            requiresPasswordChange: false,
+            isFirstTimeLogin: false,
+            passwordUpdatedAt: new Date().toISOString()
+          };
+          return updatedComp;
+        }
+        return c;
+      });
+      return { ...prev, companies: updatedCompanies };
+    });
+
+    const targetCompany = updatedComp || (db.companies || []).find(c => c.id === companyId || c.companyId === companyId);
+    const user = {
+      id: targetCompany?.id || companyId,
+      name: targetCompany?.owner || 'Company Administrator',
+      email: targetCompany?.email,
+      role: 'Company Administrator',
+      brand: 'All Brands',
+      company: targetCompany?.name || 'Company Portal',
+      companyId: targetCompany?.id || companyId,
+      avatar: targetCompany?.avatar,
+      requiresPasswordChange: false
+    };
+
+    switchActiveCompany(targetCompany?.id || companyId);
+    setCurrentUser(user);
+    localStorage.setItem('bijjam_erp_session', JSON.stringify(user));
+    setActiveTab('dashboard');
+    return { success: true, user, company: targetCompany };
   };
 
   const toggleCompanyStatus = (companyId) => {
@@ -1424,6 +1489,7 @@ export const ERPProvider = ({ children }) => {
         updateCompany,
         toggleCompanyStatus,
         deleteCompany,
+        completeFirstTimePasswordSetup,
         platformTeam: db.platformTeam || [
           { id: 'pt-1', name: 'Karthik Reddy', email: 'karthik@bliperp.com', role: 'Platform Director & Founder', phone: '+91 9848012345', status: 'Active', joinedDate: '2026-01-01', lastLogin: 'Today, 05:00 PM' },
           { id: 'pt-2', name: 'Blip Admin', email: 'admin@bliperp.com', role: 'Lead Platform Administrator', phone: '+91 9000011223', status: 'Active', joinedDate: '2026-01-15', lastLogin: 'Today, 04:45 PM' },

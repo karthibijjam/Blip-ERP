@@ -9,11 +9,13 @@ import {
   ShieldCheck, 
   Truck, 
   AlertCircle,
-  HelpCircle
+  HelpCircle,
+  KeyRound,
+  CheckCircle2
 } from 'lucide-react';
 
 export default function SignInView() {
-  const { db, login } = useERP();
+  const { db, login, completeFirstTimePasswordSetup } = useERP();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,6 +25,15 @@ export default function SignInView() {
   const [isLoading, setIsLoading] = useState(false);
   const [showForgotModal, setShowForgotModal] = useState(false);
 
+  // First-Time Login Password Setup States
+  const [firstTimeSetupOpen, setFirstTimeSetupOpen] = useState(false);
+  const [pendingCompanyData, setPendingCompanyData] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+
   const handleSubmit = (e) => {
     e.preventDefault();
     setErrorMsg('');
@@ -31,10 +42,49 @@ export default function SignInView() {
     setTimeout(() => {
       const res = login(email, password);
       setIsLoading(false);
+      if (res && res.requiresPasswordChange) {
+        setPendingCompanyData(res);
+        setFirstTimeSetupOpen(true);
+        setNewPassword('');
+        setConfirmPassword('');
+        setPasswordError('');
+        return;
+      }
       if (!res.success) {
         setErrorMsg(res.error || 'Authentication failed. Please verify your credentials.');
       }
     }, 450);
+  };
+
+  const handleFirstTimePasswordSubmit = (e) => {
+    e.preventDefault();
+    setPasswordError('');
+
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters long.');
+      return;
+    }
+
+    if (newPassword.toLowerCase() === 'admin123') {
+      setPasswordError('Please choose a new password different from the temporary default password (admin123).');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match. Please re-enter identical passwords.');
+      return;
+    }
+
+    setIsLoading(true);
+    setTimeout(() => {
+      if (completeFirstTimePasswordSetup && pendingCompanyData) {
+        const res = completeFirstTimePasswordSetup(pendingCompanyData.companyId, newPassword);
+        setIsLoading(false);
+        if (!res.success) {
+          setPasswordError(res.error || 'Failed to update password.');
+        }
+      }
+    }, 400);
   };
 
 
@@ -150,123 +200,268 @@ export default function SignInView() {
             {/* Top accent bar */}
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-600"></div>
 
-            <div className="mb-6 space-y-1.5">
-              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center justify-between">
-                <span>Enterprise Sign In</span>
-                <span className="text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                  Portal Login
-                </span>
-              </h2>
-              <p className="text-xs text-slate-400 font-medium">
-                Sign in to access your company ERP workspace & modules.
-              </p>
-            </div>
+            {firstTimeSetupOpen ? (
+              /* First-Time Login Password Change Flow */
+              <div className="space-y-4 animate-fade-in">
+                <div className="space-y-1.5">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center justify-between">
+                    <span>First-Time Security Setup</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30">
+                      New Password Required
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-300 font-medium">
+                    Welcome, <strong className="text-emerald-400">{pendingCompanyData?.owner || pendingCompanyData?.companyName || 'Partner'}</strong>! Your outlet account was provisioned with the temporary default password (<code className="bg-slate-950 px-1.5 py-0.5 rounded text-amber-300 font-mono">admin123</code>).
+                  </p>
+                </div>
 
-            {/* Error Banner */}
-            {errorMsg && (
-              <div className="mb-5 p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-xs text-rose-300 flex items-start space-x-2.5 animate-shake">
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-                <span>{errorMsg}</span>
+                <div className="p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-2xl flex items-start space-x-2.5 text-xs text-emerald-200">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <span>Please create your own secure password below and re-enter it to confirm. You will use this new password for all future logins.</span>
+                </div>
+
+                {/* Password Error Banner */}
+                {passwordError && (
+                  <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-xs text-rose-300 flex items-start space-x-2.5 animate-shake">
+                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                    <span>{passwordError}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleFirstTimePasswordSubmit} className="space-y-4">
+                  {/* Enter New Password */}
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                      Enter New Password *
+                    </label>
+                    <div className="relative">
+                      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
+                        <Lock className="w-4 h-4" />
+                      </div>
+                      <input
+                        type={showNewPassword ? 'text' : 'password'}
+                        required
+                        placeholder="Choose new password (min 6 chars)"
+                        value={newPassword}
+                        onChange={(e) => {
+                          setNewPassword(e.target.value);
+                          setPasswordError('');
+                        }}
+                        className="w-full bg-slate-950 border border-slate-800 text-white placeholder-slate-600 text-xs rounded-xl pl-10 pr-10 py-2.5 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition font-medium"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition"
+                        title={showNewPassword ? "Hide password" : "Show password"}
+                      >
+                        {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-1">Must be at least 6 characters & different from admin123.</p>
+                  </div>
+
+                  {/* Re-enter New Password */}
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                      Re-enter New Password *
+                    </label>
+                    <div className="relative">
+                      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
+                        <Lock className="w-4 h-4" />
+                      </div>
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        required
+                        placeholder="Re-enter your new password"
+                        value={confirmPassword}
+                        onChange={(e) => {
+                          setConfirmPassword(e.target.value);
+                          setPasswordError('');
+                        }}
+                        className="w-full bg-slate-950 border border-slate-800 text-white placeholder-slate-600 text-xs rounded-xl pl-10 pr-10 py-2.5 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition font-medium"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition"
+                        title={showConfirmPassword ? "Hide password" : "Show password"}
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+
+                    {confirmPassword && (
+                      <div className="mt-1.5 text-[11px] font-medium">
+                        {newPassword === confirmPassword ? (
+                          <span className="text-emerald-400 flex items-center gap-1.5">
+                            <CheckCircle2 size={13} /> Passwords match!
+                          </span>
+                        ) : (
+                          <span className="text-rose-400 flex items-center gap-1.5">
+                            <AlertCircle size={13} /> Passwords do not match
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Submit & Cancel Buttons */}
+                  <div className="pt-2 space-y-2">
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-[0.99] text-slate-950 font-bold py-3 px-4 rounded-xl text-xs sm:text-sm shadow-lg shadow-emerald-500/25 transition duration-150 flex items-center justify-center space-x-2 disabled:opacity-75 cursor-pointer"
+                    >
+                      {isLoading ? (
+                        <>
+                          <i className="fa-solid fa-circle-notch animate-spin text-sm"></i>
+                          <span>Securing Account...</span>
+                        </>
+                      ) : (
+                        <>
+                          <KeyRound className="w-4 h-4" />
+                          <span>Save Password & Enter Dashboard</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFirstTimeSetupOpen(false);
+                        setPassword('');
+                        setPasswordError('');
+                      }}
+                      className="w-full bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-white py-2 px-4 rounded-xl text-xs font-semibold transition border border-slate-800"
+                    >
+                      Back to Sign In
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ) : (
+              /* Standard Enterprise Sign In Form */
+              <div>
+                <div className="mb-6 space-y-1.5">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center justify-between">
+                    <span>Enterprise Sign In</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                      Portal Login
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-400 font-medium">
+                    Sign in to access your company ERP workspace & modules.
+                  </p>
+                </div>
+
+                {/* Error Banner */}
+                {errorMsg && (
+                  <div className="mb-5 p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-xs text-rose-300 flex items-start space-x-2.5 animate-shake">
+                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                    <span>{errorMsg}</span>
+                  </div>
+                )}
+
+                {/* Login Form */}
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  
+                  {/* Direct Single-Portal Info Banner */}
+                  <div className="p-3 bg-slate-950/70 border border-slate-800/80 rounded-2xl flex items-center space-x-2.5 text-xs text-slate-400">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Enter your corporate email to directly access your assigned company portal.</span>
+                  </div>
+
+                  {/* Email Address */}
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                      Email Address / Corporate ID
+                    </label>
+                    <div className="relative">
+                      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
+                        <Mail className="w-4 h-4" />
+                      </div>
+                      <input
+                        type="email"
+                        required
+                        placeholder="name@bijjam.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 text-white placeholder-slate-600 text-xs rounded-xl pl-10 pr-3.5 py-2.5 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Password */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                        Password
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowForgotModal(true)}
+                        className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold transition"
+                      >
+                        Forgot Password?
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
+                        <Lock className="w-4 h-4" />
+                      </div>
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 text-white placeholder-slate-600 text-xs rounded-xl pl-10 pr-10 py-2.5 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition font-medium"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Remember Me */}
+                  <div className="flex items-center justify-between pt-1">
+                    <label className="flex items-center space-x-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                        className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0 cursor-pointer"
+                      />
+                      <span className="text-xs text-slate-400 font-medium">Keep me signed in</span>
+                    </label>
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-[0.99] text-slate-950 font-bold py-3 px-4 rounded-xl text-xs sm:text-sm shadow-lg shadow-emerald-500/25 transition duration-150 flex items-center justify-center space-x-2 mt-2 disabled:opacity-75 disabled:cursor-not-allowed"
+                  >
+                    {isLoading ? (
+                      <>
+                        <i className="fa-solid fa-circle-notch animate-spin text-sm"></i>
+                        <span>Authenticating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Sign In to ERP Portal</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </form>
               </div>
             )}
-
-            {/* Login Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              
-              {/* Direct Single-Portal Info Banner */}
-              <div className="p-3 bg-slate-950/70 border border-slate-800/80 rounded-2xl flex items-center space-x-2.5 text-xs text-slate-400">
-                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Enter your corporate email to directly access your assigned company portal.</span>
-              </div>
-
-              {/* Email Address */}
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                  Email Address / Corporate ID
-                </label>
-                <div className="relative">
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
-                    <Mail className="w-4 h-4" />
-                  </div>
-                  <input
-                    type="email"
-                    required
-                    placeholder="name@bijjam.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 text-white placeholder-slate-600 text-xs rounded-xl pl-10 pr-3.5 py-2.5 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition font-medium"
-                  />
-                </div>
-              </div>
-
-              {/* Password */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                    Password
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowForgotModal(true)}
-                    className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold transition"
-                  >
-                    Forgot Password?
-                  </button>
-                </div>
-                <div className="relative">
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
-                    <Lock className="w-4 h-4" />
-                  </div>
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 text-white placeholder-slate-600 text-xs rounded-xl pl-10 pr-10 py-2.5 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition font-medium"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Remember Me */}
-              <div className="flex items-center justify-between pt-1">
-                <label className="flex items-center space-x-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0 cursor-pointer"
-                  />
-                  <span className="text-xs text-slate-400 font-medium">Keep me signed in</span>
-                </label>
-              </div>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-[0.99] text-slate-950 font-bold py-3 px-4 rounded-xl text-xs sm:text-sm shadow-lg shadow-emerald-500/25 transition duration-150 flex items-center justify-center space-x-2 mt-2 disabled:opacity-75 disabled:cursor-not-allowed"
-              >
-                {isLoading ? (
-                  <>
-                    <i className="fa-solid fa-circle-notch animate-spin text-sm"></i>
-                    <span>Authenticating...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Sign In to ERP Portal</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-            </form>
 
             {/* Get A Quick Demo CTA */}
             <div className="mt-6 pt-5 border-t border-slate-800">

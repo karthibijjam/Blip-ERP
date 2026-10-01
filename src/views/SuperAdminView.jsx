@@ -14,7 +14,10 @@ import {
   PackageCheck,
   Milk,
   Boxes,
-  Briefcase
+  Briefcase,
+  KeyRound,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 export default function SuperAdminView() {
@@ -34,6 +37,7 @@ export default function SuperAdminView() {
   const [selectedPlanFilter, setSelectedPlanFilter] = useState('all');
   const [companyModalOpen, setCompanyModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState(null);
+  const [showModalPassword, setShowModalPassword] = useState(false);
 
   const adminDisplayName = currentUser?.name || 'Administrator';
 
@@ -45,6 +49,8 @@ export default function SuperAdminView() {
     email: '',
     phone: '',
     address: '',
+    password: 'admin123',
+    requiresPasswordChange: true,
     plan: 'Professional',
     monthlyFee: 8500,
     renewalDate: '2027-09-30',
@@ -74,6 +80,7 @@ export default function SuperAdminView() {
 
   const handleOpenCreateModal = () => {
     setEditingCompany(null);
+    setShowModalPassword(false);
     setFormData({
       name: '',
       gst: '',
@@ -81,6 +88,8 @@ export default function SuperAdminView() {
       email: '',
       phone: '',
       address: '',
+      password: 'admin123',
+      requiresPasswordChange: true,
       plan: 'Professional',
       monthlyFee: 8500,
       renewalDate: '2027-09-30',
@@ -91,6 +100,7 @@ export default function SuperAdminView() {
 
   const handleOpenEditModal = (comp) => {
     setEditingCompany(comp);
+    setShowModalPassword(false);
     setFormData({
       name: comp.name,
       gst: comp.gst,
@@ -98,6 +108,8 @@ export default function SuperAdminView() {
       email: comp.email,
       phone: comp.phone,
       address: comp.address || '',
+      password: comp.password || 'admin123',
+      requiresPasswordChange: comp.requiresPasswordChange || false,
       plan: comp.plan || 'Professional',
       monthlyFee: comp.monthlyFee || 8500,
       renewalDate: comp.renewalDate || '2027-09-30',
@@ -593,6 +605,69 @@ export default function SuperAdminView() {
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   className="w-full border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-medium focus:border-emerald-500 focus:outline-none"
                 />
+              </div>
+
+              {/* Security & Portal Access Credentials */}
+              <div className="pt-2 border-t border-slate-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center space-x-2">
+                    <KeyRound className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Portal Login Password</span>
+                  </label>
+                  <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                    {editingCompany ? 'Stored Credential' : 'Default: admin123'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      {editingCompany ? 'Outlet Password' : 'Initial Temporary Password *'}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showModalPassword ? 'text' : 'password'}
+                        required
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        className="w-full border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-mono font-medium focus:border-emerald-500 focus:outline-none pr-9 bg-slate-50/50"
+                        placeholder="admin123"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowModalPassword(!showModalPassword)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        title={showModalPassword ? "Hide password" : "Show password"}
+                      >
+                        {showModalPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <label className="flex items-start space-x-2.5 cursor-pointer mt-1 sm:mt-0 p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition select-none w-full">
+                      <input
+                        type="checkbox"
+                        checked={formData.requiresPasswordChange}
+                        onChange={(e) => setFormData({ ...formData, requiresPasswordChange: e.target.checked })}
+                        className="w-4 h-4 rounded text-emerald-600 focus:ring-0 mt-0.5"
+                      />
+                      <div className="text-[11px] leading-tight">
+                        <span className="font-bold text-slate-800 block">Require Password Setup on First Login</span>
+                        <span className="text-slate-500 text-[10px]">Customer must enter & re-enter their own password.</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {!editingCompany && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-900 flex items-start space-x-2">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span>
+                      When this new outlet is provisioned, the initial password is automatically set to <strong>admin123</strong>. Upon their first login, the customer will be prompted to create their own permanent password.
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Subscribed Brand Modules Selection */}
