@@ -941,7 +941,10 @@ export default function AccountView() {
             <tbody className="divide-y divide-slate-100">
               {(db.users || []).map(u => (
                 <tr key={u.id} className="hover:bg-slate-50/80 transition">
-                  <td className="p-3.5 font-bold text-slate-800">{u.name}</td>
+                  <td className="p-3.5 font-bold text-slate-800">
+                    <div>{u.name}</div>
+                    <div className="text-[10px] text-emerald-700 font-mono font-semibold">@{u.username || u.email?.split('@')[0]}</div>
+                  </td>
                   <td className="p-3.5 text-slate-600 text-xs">{u.email}</td>
                   <td className="p-3.5">
                     <span className="px-2.5 py-0.5 rounded text-xs font-semibold bg-blue-50 text-blue-700">

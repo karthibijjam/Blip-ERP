@@ -13,10 +13,10 @@ export default function CustomerPurchaseHistoryView() {
   if (dc) {
     orders.push({
       date: '2026-09-01 to 2026-09-30',
-      brand: '1. Bijjam Dairy',
+      brand: 'Dairy',
       sku: dc.sku,
       status: 'Subscription Bill',
-      amount: Number(dc.bill) || 3250
+      amount: Number(dc.bill) || 0
     });
   }
 

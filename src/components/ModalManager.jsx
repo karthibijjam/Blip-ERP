@@ -3,6 +3,7 @@ import { useERP } from '../context/useERP';
 import confetti from 'canvas-confetti';
 import CustomerModal from './CustomerModal';
 import SellingItemModal from './SellingItemModal';
+import { DEFAULT_INITIAL_PASSWORD } from '../utils/passwordPolicy';
 
 export default function ModalManager() {
   const {
@@ -34,7 +35,7 @@ export default function ModalManager() {
   // Local form states
   const [brandForm, setBrandForm] = useState({ id: '', name: '', subtitle: '', icon: 'fa-solid fa-leaf', color: 'amber' });
   const [delPassword, setDelPassword] = useState('');
-  const [userForm, setUserForm] = useState({ name: '', email: '', role: 'Manager', brand: 'All Brands', password: '' });
+  const [userForm, setUserForm] = useState({ name: '', username: '', email: '', role: 'Manager', brand: 'All Brands', password: DEFAULT_INITIAL_PASSWORD });
 
   // Dairy procurement
   const [dpForm, setDpForm] = useState({ date: '2026-09-30', shift: 'Morning', farmer: '', qty: '', fat: '6.5', snf: '8.5', rate: '48' });
@@ -94,7 +95,7 @@ export default function ModalManager() {
       return;
     }
     closeModal('addUserModal');
-    setUserForm({ name: '', email: '', role: 'Manager', brand: 'All Brands', password: '' });
+    setUserForm({ name: '', username: '', email: '', role: 'Manager', brand: 'All Brands', password: DEFAULT_INITIAL_PASSWORD });
   };
 
   // Dairy procurement submit
@@ -418,7 +419,7 @@ export default function ModalManager() {
             </div>
             <form onSubmit={handleUserSubmit} className="space-y-4 text-sm">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Full Name</label>
+                <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Full Name *</label>
                 <input
                   type="text"
                   placeholder="e.g. Rajesh Sharma"
@@ -428,9 +429,21 @@ export default function ModalManager() {
                   className="w-full border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:border-emerald-500"
                 />
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Email ID</label>
+                  <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Portal Username</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. rajesh (auto)"
+                    value={userForm.username}
+                    onChange={(e) => setUserForm({ ...userForm, username: e.target.value })}
+                    className="w-full border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:border-emerald-500 font-mono"
+                  />
+                  <span className="text-[10px] text-slate-400">Can log in with username or email</span>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Email ID *</label>
                   <input
                     type="email"
                     placeholder="rajesh@bijjam.com"
@@ -440,6 +453,9 @@ export default function ModalManager() {
                     className="w-full border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:border-emerald-500"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Assigned Role</label>
                   <select
@@ -450,11 +466,11 @@ export default function ModalManager() {
                     <option value="Manager">Manager</option>
                     <option value="Accountant">Accountant</option>
                     <option value="Delivery Executive">Delivery Executive</option>
+                    <option value="Plant Supervisor">Plant Supervisor</option>
+                    <option value="Sales Lead">Sales Lead</option>
                     <option value="Admin">Admin (Full Control)</option>
                   </select>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Brand Access</label>
                   <select
@@ -468,17 +484,19 @@ export default function ModalManager() {
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Password</label>
-                  <input
-                    type="password"
-                    placeholder="••••••••"
-                    value={userForm.password}
-                    onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
-                    required
-                    className="w-full border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:border-emerald-500"
-                  />
+              </div>
+
+              {/* Automatic Temporary Password Box */}
+              <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs space-y-1 text-emerald-950">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-[11px] uppercase tracking-wider text-emerald-800">Initial Temporary Password</span>
+                  <span className="font-mono font-bold px-2 py-0.5 rounded bg-emerald-200 text-emerald-900 text-xs">
+                    {DEFAULT_INITIAL_PASSWORD}
+                  </span>
                 </div>
+                <p className="text-[11px] text-emerald-700 leading-relaxed">
+                  Upon first sign in, the employee will be prompted to create their own 8+ character secure password (with at least 1 capital letter, 1 number, and 1 symbol).
+                </p>
               </div>
               <div className="flex justify-end space-x-2.5 pt-3 border-t border-slate-100">
                 <button

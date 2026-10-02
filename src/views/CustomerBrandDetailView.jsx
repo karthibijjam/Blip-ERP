@@ -29,12 +29,6 @@ export default function CustomerBrandDetailView() {
     });
   }
 
-  // Default fallback for clean view if initial
-  if (brandSum === 0 && customer.name === 'Dr. Srinivas Rao' && brandId === 'dairy') {
-    brandSum = 3250;
-    purchaseCount = 2;
-  }
-
   return (
     <section className="space-y-6 animate-fade-in">
       {/* Header */}

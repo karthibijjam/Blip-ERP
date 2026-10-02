@@ -15,6 +15,7 @@ export default function FarmsView() {
   } = useERP();
 
   const fin = getBrandFinancials('farms');
+  const farmsBrand = (db.brands || []).find(b => b.id === 'farms') || { name: 'Farms & Food Products' };
 
   const handleOpenModule = (moduleId) => {
     setCurrentManageBrandId('farms');
@@ -63,7 +64,7 @@ export default function FarmsView() {
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
         <h2 className="text-xl font-bold text-slate-800 flex items-center space-x-2.5">
           <i className="fa-solid fa-seedling text-emerald-600 text-2xl"></i>
-          <span>Bijjam Farms (Food Products)</span>
+          <span>{farmsBrand.name}</span>
         </h2>
         <p className="text-xs sm:text-sm text-slate-500 mt-1">
           Bulk Sourcing of Food Products, Inventory SKUs & Customer Retail Sales Tracking.

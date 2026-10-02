@@ -13,16 +13,16 @@ export default function CustomerPendingPaymentsView() {
   const dc = (db.dairyCustomers || []).find(c => c.name?.toLowerCase().trim() === cleanName);
   if (dc) {
     const totalPaid = dc.payments ? dc.payments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0) : 0;
-    const billAmt = Number(dc.bill) || 3250;
+    const billAmt = Number(dc.bill) || 0;
     const pending = Math.max(0, billAmt - totalPaid);
     bills.push({
       id: 'BILL-DAIRY-01',
       date: '2026-09-01 to 2026-09-30',
-      brand: '1. Bijjam Dairy',
+      brand: 'Dairy',
       particulars: dc.sku,
       amount: billAmt,
       paid: totalPaid,
-      pending: pending === 0 ? 500 : pending
+      pending: pending
     });
   }
 

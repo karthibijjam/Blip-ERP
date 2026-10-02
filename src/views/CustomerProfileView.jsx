@@ -51,16 +51,6 @@ export default function CustomerProfileView() {
         });
       }
 
-      // Default sample data fallback if clean demo
-      if (brandSum === 0 && customer.name === 'Dr. Srinivas Rao' && b.id === 'dairy') {
-        brandSum = 3250;
-        purchaseCount = 2;
-      }
-      if (brandSum === 0 && customer.name === 'Dr. Srinivas Rao' && b.id === 'farms') {
-        brandSum = 750;
-        purchaseCount = 1;
-      }
-
       return {
         ...b,
         brandSum,
@@ -71,11 +61,7 @@ export default function CustomerProfileView() {
 
     const grandTotal = breakdowns.reduce((acc, b) => acc + b.brandSum, 0);
     const orderCount = breakdowns.reduce((acc, b) => acc + b.purchaseCount, 0);
-    let pendingDues = breakdowns.reduce((acc, b) => acc + b.brandPending, 0);
-
-    if (pendingDues === 0 && grandTotal > 0) {
-      pendingDues = 500;
-    }
+    const pendingDues = breakdowns.reduce((acc, b) => acc + b.brandPending, 0);
 
     return {
       brandBreakdowns: breakdowns,

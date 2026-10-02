@@ -116,7 +116,7 @@ export default function BrandItemsView() {
 
               {items.length === 0 && (
                 <tr>
-                  <td colSpan="8" className="p-8 text-center text-slate-400">
+                  <td colSpan="9" className="p-8 text-center text-slate-400">
                     No selling items added for this brand yet. Click "Add Selling Item" above.
                   </td>
                 </tr>

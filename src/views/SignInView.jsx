@@ -11,8 +11,14 @@ import {
   AlertCircle,
   HelpCircle,
   KeyRound,
-  CheckCircle2
+  CheckCircle2,
+  User
 } from 'lucide-react';
+import {
+  checkPasswordCriteria,
+  validatePasswordPolicy,
+  DEFAULT_INITIAL_PASSWORD
+} from '../utils/passwordPolicy';
 
 export default function SignInView() {
   const { db, login, completeFirstTimePasswordSetup } = useERP();
@@ -33,6 +39,8 @@ export default function SignInView() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
+
+  const criteria = checkPasswordCriteria(newPassword);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -60,13 +68,9 @@ export default function SignInView() {
     e.preventDefault();
     setPasswordError('');
 
-    if (!newPassword || newPassword.length < 6) {
-      setPasswordError('New password must be at least 6 characters long.');
-      return;
-    }
-
-    if (newPassword.toLowerCase() === 'admin123') {
-      setPasswordError('Please choose a new password different from the temporary default password (admin123).');
+    const validation = validatePasswordPolicy(newPassword);
+    if (!validation.isValid) {
+      setPasswordError(validation.errorMessage);
       return;
     }
 
@@ -78,7 +82,9 @@ export default function SignInView() {
     setIsLoading(true);
     setTimeout(() => {
       if (completeFirstTimePasswordSetup && pendingCompanyData) {
-        const res = completeFirstTimePasswordSetup(pendingCompanyData.companyId, newPassword);
+        const targetId = pendingCompanyData.targetId || pendingCompanyData.companyId || pendingCompanyData.userId;
+        const accountType = pendingCompanyData.accountType || 'company';
+        const res = completeFirstTimePasswordSetup(targetId, newPassword, accountType);
         setIsLoading(false);
         if (!res.success) {
           setPasswordError(res.error || 'Failed to update password.');
@@ -211,13 +217,13 @@ export default function SignInView() {
                     </span>
                   </h2>
                   <p className="text-xs text-slate-300 font-medium">
-                    Welcome, <strong className="text-emerald-400">{pendingCompanyData?.owner || pendingCompanyData?.companyName || 'Partner'}</strong>! Your outlet account was provisioned with the temporary default password (<code className="bg-slate-950 px-1.5 py-0.5 rounded text-amber-300 font-mono">admin123</code>).
+                    Welcome, <strong className="text-emerald-400">{pendingCompanyData?.owner || pendingCompanyData?.companyName || 'Partner'}</strong>! Your {pendingCompanyData?.accountType === 'user' ? 'staff user' : 'outlet'} account ({pendingCompanyData?.email}) was provisioned with the temporary default password (<code className="bg-slate-950 px-1.5 py-0.5 rounded text-amber-300 font-mono">{DEFAULT_INITIAL_PASSWORD}</code>).
                   </p>
                 </div>
 
                 <div className="p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-2xl flex items-start space-x-2.5 text-xs text-emerald-200">
                   <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                  <span>Please create your own secure password below and re-enter it to confirm. You will use this new password for all future logins.</span>
+                  <span>Please create your own secure password below meeting all mandatory security rules. You will use this new password for all future logins.</span>
                 </div>
 
                 {/* Password Error Banner */}
@@ -241,7 +247,7 @@ export default function SignInView() {
                       <input
                         type={showNewPassword ? 'text' : 'password'}
                         required
-                        placeholder="Choose new password (min 6 chars)"
+                        placeholder="Choose secure new password"
                         value={newPassword}
                         onChange={(e) => {
                           setNewPassword(e.target.value);
@@ -258,7 +264,29 @@ export default function SignInView() {
                         {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
-                    <p className="text-[10px] text-slate-500 mt-1">Must be at least 6 characters & different from admin123.</p>
+
+                    {/* Interactive Real-Time Password Checklist */}
+                    <div className="mt-2.5 p-3 bg-slate-950/80 border border-slate-800/90 rounded-2xl space-y-1.5 text-[11px]">
+                      <p className="text-slate-400 font-semibold mb-1 text-[10px] uppercase tracking-wider">Mandatory Security Checklist:</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <div className={`flex items-center space-x-1.5 transition ${criteria.minLength ? 'text-emerald-400 font-semibold' : 'text-slate-500'}`}>
+                          <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${criteria.minLength ? 'text-emerald-400' : 'text-slate-600'}`} />
+                          <span>8+ Characters</span>
+                        </div>
+                        <div className={`flex items-center space-x-1.5 transition ${criteria.hasUpper ? 'text-emerald-400 font-semibold' : 'text-slate-500'}`}>
+                          <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${criteria.hasUpper ? 'text-emerald-400' : 'text-slate-600'}`} />
+                          <span>1+ Capital Letter (A-Z)</span>
+                        </div>
+                        <div className={`flex items-center space-x-1.5 transition ${criteria.hasNumber ? 'text-emerald-400 font-semibold' : 'text-slate-500'}`}>
+                          <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${criteria.hasNumber ? 'text-emerald-400' : 'text-slate-600'}`} />
+                          <span>1+ Number (0-9)</span>
+                        </div>
+                        <div className={`flex items-center space-x-1.5 transition ${criteria.hasSpecial ? 'text-emerald-400 font-semibold' : 'text-slate-500'}`}>
+                          <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${criteria.hasSpecial ? 'text-emerald-400' : 'text-slate-600'}`} />
+                          <span>1+ Symbol (!@#$...)</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Re-enter New Password */}
@@ -351,7 +379,7 @@ export default function SignInView() {
                     </span>
                   </h2>
                   <p className="text-xs text-slate-400 font-medium">
-                    Sign in to access your company ERP workspace & modules.
+                    Sign in with your username or registered email to access your company ERP workspace.
                   </p>
                 </div>
 
@@ -369,22 +397,22 @@ export default function SignInView() {
                   {/* Direct Single-Portal Info Banner */}
                   <div className="p-3 bg-slate-950/70 border border-slate-800/80 rounded-2xl flex items-center space-x-2.5 text-xs text-slate-400">
                     <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span>Enter your corporate email to directly access your assigned company portal.</span>
+                    <span>Enter your company username or email to access your assigned workspace.</span>
                   </div>
 
-                  {/* Email Address */}
+                  {/* Username or Email Address */}
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                      Email Address / Corporate ID
+                      Username / Corporate Email
                     </label>
                     <div className="relative">
                       <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
-                        <Mail className="w-4 h-4" />
+                        <User className="w-4 h-4" />
                       </div>
                       <input
-                        type="email"
+                        type="text"
                         required
-                        placeholder="name@bijjam.com"
+                        placeholder="e.g. admin@bijjam.com, bijjam, or username"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         className="w-full bg-slate-950 border border-slate-800 text-white placeholder-slate-600 text-xs rounded-xl pl-10 pr-3.5 py-2.5 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition font-medium"

@@ -17,8 +17,10 @@ import {
   Briefcase,
   KeyRound,
   Eye,
-  EyeOff
+  EyeOff,
+  User
 } from 'lucide-react';
+import { DEFAULT_INITIAL_PASSWORD } from '../utils/passwordPolicy';
 
 export default function SuperAdminView() {
   const { 
@@ -46,10 +48,11 @@ export default function SuperAdminView() {
     name: '',
     gst: '',
     owner: '',
+    username: '',
     email: '',
     phone: '',
     address: '',
-    password: 'admin123',
+    password: DEFAULT_INITIAL_PASSWORD,
     requiresPasswordChange: true,
     plan: 'Professional',
     monthlyFee: 8500,
@@ -85,10 +88,11 @@ export default function SuperAdminView() {
       name: '',
       gst: '',
       owner: '',
+      username: '',
       email: '',
       phone: '',
       address: '',
-      password: 'admin123',
+      password: DEFAULT_INITIAL_PASSWORD,
       requiresPasswordChange: true,
       plan: 'Professional',
       monthlyFee: 8500,
@@ -105,10 +109,11 @@ export default function SuperAdminView() {
       name: comp.name,
       gst: comp.gst,
       owner: comp.owner,
+      username: comp.username || (comp.email ? comp.email.split('@')[0] : ''),
       email: comp.email,
       phone: comp.phone,
       address: comp.address || '',
-      password: comp.password || 'admin123',
+      password: comp.password || DEFAULT_INITIAL_PASSWORD,
       requiresPasswordChange: comp.requiresPasswordChange || false,
       plan: comp.plan || 'Professional',
       monthlyFee: comp.monthlyFee || 8500,
@@ -378,7 +383,8 @@ export default function SuperAdminView() {
                     <td className="py-4 px-4">
                       <p className="font-bold text-slate-800">{comp.owner}</p>
                       <p className="text-[11px] text-slate-500">{comp.email}</p>
-                      <p className="text-[11px] text-slate-400">{comp.phone}</p>
+                      <p className="text-[11px] text-emerald-700 font-mono font-bold">@{comp.username || comp.email?.split('@')[0] || comp.id}</p>
+                      <p className="text-[10px] text-slate-400">{comp.phone}</p>
                     </td>
 
                     {/* Subscribed Modules */}
@@ -549,8 +555,8 @@ export default function SuperAdminView() {
                 </div>
               </div>
 
-              {/* Owner & Contact */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Owner & Contact & Username */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
                     Primary Owner Name *
@@ -562,6 +568,19 @@ export default function SuperAdminView() {
                     value={formData.owner}
                     onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
                     className="w-full border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-medium focus:border-emerald-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+                    Portal Username
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. krishna102 (auto)"
+                    value={formData.username || ''}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                    className="w-full border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-mono font-medium focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
 
@@ -615,7 +634,7 @@ export default function SuperAdminView() {
                     <span>Portal Login Password</span>
                   </label>
                   <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                    {editingCompany ? 'Stored Credential' : 'Default: admin123'}
+                    {editingCompany ? 'Stored Credential' : `Default: ${DEFAULT_INITIAL_PASSWORD}`}
                   </span>
                 </div>
 
@@ -631,7 +650,7 @@ export default function SuperAdminView() {
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         className="w-full border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-mono font-medium focus:border-emerald-500 focus:outline-none pr-9 bg-slate-50/50"
-                        placeholder="admin123"
+                        placeholder={DEFAULT_INITIAL_PASSWORD}
                       />
                       <button
                         type="button"
@@ -654,7 +673,7 @@ export default function SuperAdminView() {
                       />
                       <div className="text-[11px] leading-tight">
                         <span className="font-bold text-slate-800 block">Require Password Setup on First Login</span>
-                        <span className="text-slate-500 text-[10px]">Customer must enter & re-enter their own password.</span>
+                        <span className="text-slate-500 text-[10px]">Customer must create a new password meeting all security rules.</span>
                       </div>
                     </label>
                   </div>
@@ -664,7 +683,7 @@ export default function SuperAdminView() {
                   <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-900 flex items-start space-x-2">
                     <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                     <span>
-                      When this new outlet is provisioned, the initial password is automatically set to <strong>admin123</strong>. Upon their first login, the customer will be prompted to create their own permanent password.
+                      When this new outlet is provisioned, the initial password is automatically set to <strong>{DEFAULT_INITIAL_PASSWORD}</strong>. Upon their first login, the customer will be required to change their password to an 8+ character password with at least 1 capital letter, 1 number, and 1 symbol.
                     </span>
                   </div>
                 )}

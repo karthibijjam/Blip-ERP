@@ -10,6 +10,7 @@ export default function DashboardView() {
     getBrandFinancials, 
     setActiveTab, 
     setCurrentManageBrandId,
+    isBrandSubscribed,
     openModal 
   } = useERP();
 
@@ -23,8 +24,8 @@ export default function DashboardView() {
     totalActivity 
   } = groupFinancials;
 
-  // Active brands
-  const activeBrands = (db.brands || []).filter(b => b.active);
+  // Active and subscribed brands for this company
+  const activeBrands = (db.brands || []).filter(b => b.active && isBrandSubscribed(b.id));
 
   // SVG Pie chart calculation
   const slices = [

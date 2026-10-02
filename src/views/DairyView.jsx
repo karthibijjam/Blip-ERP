@@ -18,6 +18,7 @@ export default function DairyView() {
   const [box2Month, setBox2Month] = useState('2026-09');
 
   const fin = getBrandFinancials('dairy');
+  const dairyBrand = (db.brands || []).find(b => b.id === 'dairy') || { name: 'Dairy Management' };
 
   // Box 1 Calculations
   let b1Sales = 0;
@@ -32,7 +33,6 @@ export default function DairyView() {
       b1Pending += Math.max(0, bill - paid);
     });
   }
-  if (b1Pending === 0 && b1Sales > 0) b1Pending = 500;
 
   // Box 2 Calculations
   let b2Sales = b1Sales;
@@ -79,7 +79,7 @@ export default function DairyView() {
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
         <h2 className="text-xl font-bold text-slate-800 flex items-center space-x-2.5">
           <i className="fa-solid fa-cow text-amber-500 text-2xl"></i>
-          <span>Bijjam Dairy Management</span>
+          <span>{dairyBrand.name}</span>
         </h2>
         <p className="text-xs sm:text-sm text-slate-500 mt-1">
           Farmer Milk Procurement, Cattle Farm, Feed Expenses & Delivery Subscription Module.

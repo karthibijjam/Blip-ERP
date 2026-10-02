@@ -362,21 +362,21 @@ export default function FinancialSubpageView() {
                       <div className="text-xs text-slate-400 font-normal">{c.phone}</div>
                     </td>
                     <td className="p-3.5 text-slate-600 text-xs font-medium">
-                      {c.route || 'Route A - Jubilee Hills'}
+                      {c.route || 'General Delivery'}
                     </td>
                     <td className="p-3.5 text-slate-500 text-xs">
-                      {c.recentDate || '2026-09-30'}
+                      {c.recentDate || new Date().toISOString().split('T')[0]}
                     </td>
                     <td className="p-3.5 text-right font-bold text-emerald-700">
-                      ₹{Number(c.bill || 3250).toLocaleString()}
+                      ₹{Number(c.bill || 0).toLocaleString()}
                     </td>
                     <td className="p-3.5 text-right">
                       <span
                         className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          (c.pending ?? 500) > 0 ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'
+                          (Number(c.pending) || 0) > 0 ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'
                         }`}
                       >
-                        Pending: ₹{Number(c.pending ?? 500).toLocaleString()}
+                        Pending: ₹{Number(c.pending || 0).toLocaleString()}
                       </span>
                     </td>
                   </tr>

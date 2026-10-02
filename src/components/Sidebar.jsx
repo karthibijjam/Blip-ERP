@@ -3,15 +3,9 @@ import { useERP } from '../context/useERP';
 import { 
   LayoutDashboard, 
   FileSpreadsheet, 
-  Settings, 
   ChevronDown, 
   ChevronRight, 
-  PanelLeft,
-  PanelLeftClose, 
-  PanelLeftOpen, 
-  Milk, 
   Boxes, 
-  Sparkles, 
   Wallet, 
   Users, 
   ShoppingCart, 
@@ -21,11 +15,9 @@ import {
   SlidersHorizontal, 
   X, 
   Store,
-  Layers,
   ChevronLeft,
-  ChevronRightCircle,
-  ShieldCheck,
-  Building2
+  Building2,
+  ShieldCheck
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -42,7 +34,6 @@ export default function Sidebar() {
     openModal,
     activeCompany,
     isBrandSubscribed,
-    currentUser,
     isPlatformAdmin,
     sidebarCollapsed,
     toggleSidebar,
@@ -138,7 +129,16 @@ export default function Sidebar() {
                 }`}
               >
                 <Boxes size={14} className="text-amber-600 shrink-0" />
-                <span className="truncate">Core Brand Modules (3)</span>
+                <span className="truncate">Modules Management</span>
+              </button>
+              <button
+                onClick={() => { setActiveTab('tenant-companies-management'); setMobileSidebarOpen(false); }}
+                className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-2 transition ${
+                  activeTab === 'tenant-companies-management' || activeTab === 'outlet-companies-management' ? 'bg-emerald-50 text-emerald-800 font-bold' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                }`}
+              >
+                <Building2 size={14} className="text-blue-600 shrink-0" />
+                <span className="truncate">Tenant Companies Management</span>
               </button>
               <button
                 onClick={() => { setActiveTab('account'); setMobileSidebarOpen(false); }}
@@ -654,13 +654,13 @@ export default function Sidebar() {
                   {!isCollapsed && <span>Platform Console & Tenants</span>}
                 </button>
 
-                {/* Core Brand Modules (3) */}
+                {/* Modules Management */}
                 <button
                   onClick={() => {
                     setActiveTab('core-modules');
                     setMobileSidebarOpen(false);
                   }}
-                  title="Core Brand Modules (3)"
+                  title="Modules Management"
                   className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-2xl text-xs font-bold transition ${
                     activeTab === 'core-modules'
                       ? 'bg-emerald-50 text-emerald-800 border border-emerald-300/40 shadow-sm'
@@ -668,7 +668,24 @@ export default function Sidebar() {
                   }`}
                 >
                   <Boxes size={17} className={`${activeTab === 'core-modules' ? 'text-amber-600' : 'text-slate-500'} shrink-0`} />
-                  {!isCollapsed && <span>Core Brand Modules (3)</span>}
+                  {!isCollapsed && <span>Modules Management</span>}
+                </button>
+
+                {/* Tenant Companies Management */}
+                <button
+                  onClick={() => {
+                    setActiveTab('tenant-companies-management');
+                    setMobileSidebarOpen(false);
+                  }}
+                  title="Tenant Companies Management"
+                  className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-2xl text-xs font-bold transition ${
+                    activeTab === 'tenant-companies-management' || activeTab === 'outlet-companies-management'
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-300/40 shadow-sm'
+                      : 'text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <Building2 size={17} className={`${activeTab === 'tenant-companies-management' || activeTab === 'outlet-companies-management' ? 'text-blue-600' : 'text-slate-500'} shrink-0`} />
+                  {!isCollapsed && <span>Tenant Companies Management</span>}
                 </button>
 
                 {/* Platform Team & My Account */}
@@ -811,7 +828,7 @@ export default function Sidebar() {
                   </button>
                   <button
                     onClick={() => { setActiveTab('core-modules'); setMobileSidebarOpen(false); }}
-                    title="Core Brand Modules (3)"
+                    title="Modules Management"
                     className={`p-2 rounded-xl transition ${
                       activeTab === 'core-modules'
                         ? 'bg-emerald-100 text-emerald-700 font-bold'
@@ -819,6 +836,17 @@ export default function Sidebar() {
                     }`}
                   >
                     <Boxes size={18} className="text-amber-600" />
+                  </button>
+                  <button
+                    onClick={() => { setActiveTab('tenant-companies-management'); setMobileSidebarOpen(false); }}
+                    title="Tenant Companies Management"
+                    className={`p-2 rounded-xl transition ${
+                      activeTab === 'tenant-companies-management' || activeTab === 'outlet-companies-management'
+                        ? 'bg-emerald-100 text-emerald-700 font-bold'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Building2 size={18} className="text-blue-600" />
                   </button>
                   <button
                     onClick={() => { setActiveTab('account'); setMobileSidebarOpen(false); }}

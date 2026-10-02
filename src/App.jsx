@@ -23,6 +23,7 @@ import FinancialSubpageView from './views/FinancialSubpageView';
 import HomeView from './views/HomeView';
 import SuperAdminView from './views/SuperAdminView';
 import CoreBrandModulesView from './views/CoreBrandModulesView';
+import TenantCompaniesManagementView from './views/TenantCompaniesManagementView';
 
 import Sidebar from './components/Sidebar';
 
@@ -47,8 +48,11 @@ function ERPAppContent() {
       if (activeTab === 'account') {
         return <AccountView />;
       }
-      if (activeTab === 'core-modules' || activeTab === 'platform-modules') {
+      if (activeTab === 'core-modules' || activeTab === 'platform-modules' || activeTab === 'modules-management') {
         return <CoreBrandModulesView />;
+      }
+      if (activeTab === 'tenant-companies-management' || activeTab === 'outlet-companies-management') {
+        return <TenantCompaniesManagementView />;
       }
       if (activeTab === 'company-dashboard') {
         return <DashboardView />;
@@ -90,6 +94,9 @@ function ERPAppContent() {
         return <AccountView />;
       case 'financial-subpage':
         return <FinancialSubpageView />;
+      case 'tenant-companies-management':
+      case 'outlet-companies-management':
+        return <TenantCompaniesManagementView />;
       default:
         // If it's a dynamic brand
         const customBrand = (db.brands || []).find(b => b.id === activeTab);

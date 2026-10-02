@@ -15,6 +15,7 @@ export default function PlantrixView() {
   } = useERP();
 
   const fin = getBrandFinancials('plantrix');
+  const plantrixBrand = (db.brands || []).find(b => b.id === 'plantrix') || { name: 'Eco Plantrix' };
 
   const handleOpenModule = (moduleId) => {
     setCurrentManageBrandId('plantrix');
@@ -63,7 +64,7 @@ export default function PlantrixView() {
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
         <h2 className="text-xl font-bold text-slate-800 flex items-center space-x-2.5">
           <i className="fa-solid fa-spray-can-sparkles text-cyan-600 text-2xl"></i>
-          <span>Eco Plantrix (Cleaning Products)</span>
+          <span>{plantrixBrand.name}</span>
         </h2>
         <p className="text-xs sm:text-sm text-slate-500 mt-1">
           Eco-Friendly Cleaning Products Procurement, Inventory SKUs & Customer Retail Sales.
